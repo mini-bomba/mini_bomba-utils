@@ -64,6 +64,6 @@ They and their meaning are listed below:
 
 * `MBV_RAMDISK_SIZE`: Alters the size of the RAM disk used for temporary decrypted file storage. Default value: `1G`. **WARNING: Specifying a value too small to fit all the files from your vault may result in data loss!**
 * `MBV_FILE_LOCATION`: Specifies the location of encrypted `.mbv` files. Default value: `$HOME/.mini_bomba_vault`. May result in some vaults being unavailable, if stored in a different location than specified.
-* `MBV_RAMDISK_LOCATION`: Specified the location of RAM disk mount points for temporary decrypted file storage. Default value: `/tmp/mini_bomba_vault-$USER`. Make sure to use a directory you have access to.
+* `MBV_RAMDISK_LOCATION`: Specifies the location of RAM disk mount points for temporary decrypted file storage. Default value: `/tmp/mini_bomba_vault-$USER`. Make sure to use a directory you have access to.
 * `MBV_USE_SUDO`: If set to any value, forces `sudo` (CLI auth) to be used instead of `pkexec` (GUI auth) for privilege elevation. 
 

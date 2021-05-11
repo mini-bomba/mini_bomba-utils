@@ -9,7 +9,7 @@
 
 Install the requirements, if not already met.
 
-Clone the repo & add it to the PATH, or download the file, put it in a directory on the PATH (such as /usr/local/bin, or ~/.local/bin) and mark it executable.
+Clone the repo & add it to the PATH, or download the file, put it in a directory on the PATH (such as `/usr/local/bin`, or `~/.local/bin`) and mark it executable.
 
 ### Usage
 
