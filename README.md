@@ -21,6 +21,6 @@ Most executable files in this repository will not include extensions specifying 
 
 Script name/file | Documentation file | Language
 -----------------|--------------------|---------
-[passwordgen](/passwordgen) | [Documentation](/passwordgen.md) | bash
-[mini_vault](/mini_vault) | [Documentation](/mini_vault.md) | python3
+[passwordgen](/passwordgen) | [passwordgen.md](/passwordgen.md) | bash
+[mini_vault](/mini_vault) | [mini_vault.md](/mini_vault.md) | python3
 
