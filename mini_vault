@@ -29,7 +29,26 @@ if [ -z "$MBV_RAMDISK_LOCATION" ]
 then
     MBV_RAMDISK_LOCATION=/tmp/mini_bomba_vault-$USER
 fi
-
+# Get the program used for privilege elevation
+if [[ $EUID == 0 ]]
+then
+    # running as root, does not need to elevate privileges
+    echo "Note: You're running this as root, and therefore you're accessing root's vaults."
+    echo "If you want to access your own vaults, do not run this as root."
+    root_auth=
+elif ! [ -z "$MBV_USE_SUDO" ] || ! which pkexec
+then
+    # Use sudo (CLI auth)
+    if ! which sudo
+    then
+        echo "Missing dependency: sudo"
+        exit 1
+    fi
+    root_auth=$(which sudo)
+else
+    # Use pkexec (GUI auth)
+    root_auth=$(which pkexec)
+fi
 # Create the encrypted file directory if it is not there
 if ! [ -d $MBV_FILE_LOCATION ]
 then
@@ -134,7 +153,7 @@ then
         exit 1
     fi
     mkdir $MBV_RAMDISK_LOCATION/$2
-    pkexec bash -c "mount -t tmpfs -o size=$MBV_RAMDISK_SIZE mbv-$USER-$2 $MBV_RAMDISK_LOCATION/$2 && chown $USER:$USER $MBV_RAMDISK_LOCATION/$2 && chmod 700 $MBV_RAMDISK_LOCATION/$2"
+    $root_auth bash -c "mount -t tmpfs -o size=$MBV_RAMDISK_SIZE mbv-$USER-$2 $MBV_RAMDISK_LOCATION/$2 && chown $USER:$USER $MBV_RAMDISK_LOCATION/$2 && chmod 700 $MBV_RAMDISK_LOCATION/$2"
     if [[ $? -eq 0 ]]
     then
         echo "Done!"
@@ -143,7 +162,7 @@ then
         rmdir $MBV_RAMDISK_LOCATION/$2
         exit 1
     fi
-    trap "echo 'Received SIGINT/TERM, aborting'; cd $initial_wd; pkexec umount $MBV_RAMDISK_LOCATION/$2; rmdir $MBV_RAMDISK_LOCATION/$2; exit 1" SIGINT SIGTERM
+    trap "echo 'Received SIGINT/TERM, aborting'; cd $initial_wd; $root_auth umount $MBV_RAMDISK_LOCATION/$2; rmdir $MBV_RAMDISK_LOCATION/$2; exit 1" SIGINT SIGTERM
     echo "Decrypting & extracting files... "
     cd $MBV_RAMDISK_LOCATION/$2
     file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv | awk '{print $1}')
@@ -155,7 +174,7 @@ then
     d=0
     while true
     do
-        trap "echo -e '\nReceived SIGINT/TERM, unmounting without saving'; pkexec umount $MBV_RAMDISK_LOCATION/$2; rmdir $MBV_RAMDISK_LOCATION/$2; exit 1" SIGINT
+        trap "echo -e '\nReceived SIGINT/TERM, unmounting without saving'; $root_auth umount $MBV_RAMDISK_LOCATION/$2; rmdir $MBV_RAMDISK_LOCATION/$2; exit 1" SIGINT SIGTERM
         echo -n "Press return to save & unmount vault."
         read
         trap "echo 'CTRL+C is currently disabled to prevent data loss.'" SIGINT SIGTERM
@@ -176,7 +195,7 @@ then
         fi
         echo "Saved!"
         echo -n "Unmounting ramdisk... "
-        pkexec umount $MBV_RAMDISK_LOCATION/$2
+        $root_auth umount $MBV_RAMDISK_LOCATION/$2
         if [[ $? -ne 0 ]]
         then
             echo "Failed!"
