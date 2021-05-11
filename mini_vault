@@ -36,7 +36,7 @@ then
     echo "Note: You're running this as root, and therefore you're accessing root's vaults."
     echo "If you want to access your own vaults, do not run this as root."
     root_auth=
-elif ! [ -z "$MBV_USE_SUDO" ] || ! which pkexec
+elif ! [ -z "$MBV_USE_SUDO" ] || ! which pkexec > /dev/null
 then
     # Use sudo (CLI auth)
     if ! which sudo
