@@ -1,0 +1,194 @@
+#! /bin/bash
+#    mini_bomba vault: encrypted file storage utility
+#
+#    Copyright (C) 2021 mini_bomba
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# Set the default variables if not specified
+if [ -z "$MBV_RAMDISK_SIZE" ]
+then
+    MBV_RAMDISK_SIZE=1G
+fi
+if [ -z "$MBV_FILE_LOCATION" ]
+then
+    MBV_FILE_LOCATION=$HOME/.mini_bomba_vault
+fi
+if [ -z "$MBV_RAMDISK_LOCATION" ]
+then
+    MBV_RAMDISK_LOCATION=/tmp/mini_bomba_vault-$USER
+fi
+
+# Create the encrypted file directory if it is not there
+if ! [ -d $MBV_FILE_LOCATION ]
+then
+    mkdir $MBV_FILE_LOCATION
+fi
+chmod 700 $MBV_FILE_LOCATION
+if ! [ -z "$(ls $MBV_FILE_LOCATION)" ]
+then
+    chmod 600 $MBV_FILE_LOCATION/*.mbv
+fi
+chmod 600 $MBV_FILE_LOCATION/*
+# ... and the ramdisk directory
+if ! [ -d $MBV_RAMDISK_LOCATION ]
+then
+    mkdir $MBV_RAMDISK_LOCATION
+    chmod 700 $MBV_RAMDISK_LOCATION
+fi
+shopt -s dotglob
+
+# Save current directory, for later
+initial_wd=$PWD
+
+if [[ $1 == "help" ]]
+then
+    echo "mini_bomba vault: encrypted file storage utility"
+    echo "This program comes with ABSOLUTELY NO WARRANTY; for details use the 'license' subcommand."
+    echo "Available subcommands:"
+    echo "  help - show this help message"
+    echo "  list - list your vaults"
+    echo "  create <name> [gpg key ID] - creates a new vault"
+    echo "  open <name> - decrypts & mounts the vault"
+    echo "  license - shows more info about the warranty & license"
+    exit 0
+elif [[ $1 == "warranty" ]] || [[ $1 == "license" ]]
+then
+echo "   mini_bomba vault"
+echo "   Copyright (C) 2021 mini_bomba"
+echo
+echo "   This program is free software: you can redistribute it and/or modify"
+echo "   it under the terms of the GNU General Public License as published by"
+echo "   the Free Software Foundation, either version 3 of the License, or"
+echo "   (at your option) any later version."
+echo
+echo "   This program is distributed in the hope that it will be useful,"
+echo "   but WITHOUT ANY WARRANTY; without even the implied warranty of"
+echo "   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the"
+echo "   GNU General Public License for more details."
+echo
+echo "   You should have received a copy of the GNU General Public License"
+echo "   along with this program.  If not, see <https://www.gnu.org/licenses/>."
+elif [[ $1 == "list" ]]
+then
+    echo "Your vault files:"
+    ls -lAh $MBV_FILE_LOCATION
+    echo
+    echo "Your unlocked vaults:"
+    ls -lAh $MBV_RAMDISK_LOCATION
+    exit 0
+elif [[ $1 == "create" ]]
+then
+    if [ -z "$2" ]
+    then 
+        echo "Missing required param: name" 
+        exit 1 
+    fi
+    if [ -e $MBV_FILE_LOCATION/$2.mbv ]
+    then
+        echo "Vault '$2' already exists!"
+        exit 1
+    fi
+    echo -n "Creating... "
+    if [ -z "$3" ]
+    then
+        tar -czT /dev/null | gpg --encrypt --default-recipient-self -o $MBV_FILE_LOCATION/$2.mbv && chmod 600 $MBV_FILE_LOCATION/$2.mbv && echo "Created!" || echo "Failed!"
+    else
+        tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $3 -r $3 && chmod 600 $MBV_FILE_LOCATION/$2.mbv && echo "Created!" || echo "Failed!"
+    fi
+    exit $?
+elif [[ $1 == "open" ]] || [[ $1 == "mount" ]]
+then
+    if [ -z "$2" ]
+    then 
+        echo "Missing required param: name" 
+        exit 1 
+    fi
+    if ! [ -e $MBV_FILE_LOCATION/$2.mbv ]
+    then
+        echo "Vault '$2' does not exist! Use mini_vault create to create a new one!"
+        exit 1
+    fi
+    echo "Checking used gpg key..."
+    key_id=$(gpg --list-packets $MBV_FILE_LOCATION/$2.mbv | grep -oP "[A-F0-9]{16}" | head -n 1)
+    if [ -z "$key_id" ]
+    then
+        echo "Unable to get key used, aborting"
+        exit 1
+    fi
+    echo -n "Creating ramdisk... "
+    if [ -e $MBV_RAMDISK_LOCATION/$2 ]
+    then
+        echo "Error: Ramdisk location ($MBV_RAMDISK_LOCATION/$2) already exists!"
+        exit 1
+    fi
+    mkdir $MBV_RAMDISK_LOCATION/$2
+    pkexec bash -c "mount -t tmpfs -o size=$MBV_RAMDISK_SIZE mbv-$USER-$2 $MBV_RAMDISK_LOCATION/$2 && chown $USER:$USER $MBV_RAMDISK_LOCATION/$2 && chmod 700 $MBV_RAMDISK_LOCATION/$2"
+    if [[ $? -eq 0 ]]
+    then
+        echo "Done!"
+    else
+        echo "Failed, aborting!"
+        rmdir $MBV_RAMDISK_LOCATION/$2
+        exit 1
+    fi
+    trap "echo 'Received SIGINT/TERM, aborting'; cd $initial_wd; pkexec umount $MBV_RAMDISK_LOCATION/$2; rmdir $MBV_RAMDISK_LOCATION/$2; exit 1" SIGINT SIGTERM
+    echo "Decrypting & extracting files... "
+    cd $MBV_RAMDISK_LOCATION/$2
+    file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv | awk '{print $1}')
+    gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv | pv -s $file_size | tar -xz
+    cd $initial_wd
+    echo "Done!"
+    echo "Files ready in $MBV_RAMDISK_LOCATION/$2"
+    xdg-open $MBV_RAMDISK_LOCATION/$2 &
+    d=0
+    while true
+    do
+        trap "echo -e '\nReceived SIGINT/TERM, unmounting without saving'; pkexec umount $MBV_RAMDISK_LOCATION/$2; rmdir $MBV_RAMDISK_LOCATION/$2; exit 1" SIGINT
+        echo -n "Press return to save & unmount vault."
+        read
+        trap "echo 'CTRL+C is currently disabled to prevent data loss.'" SIGINT SIGTERM
+        echo "Saving... "
+        if [ -z "$(ls -A $MBV_RAMDISK_LOCATION/$2)" ]
+        then
+            echo -n "Directory empty, creating empty vault... "
+            tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $key_id -r $key_id --yes
+        else
+            file_size=$(du -sb $MBV_RAMDISK_LOCATION/$2 | awk '{print $1}')
+            cd $MBV_RAMDISK_LOCATION/$2 && tar -cz * | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/$2.mbv
+        fi
+        cd $initial_wd
+        if [[ $? -ne 0 ]]
+        then
+            echo "Failed!"
+            continue
+        fi
+        echo "Saved!"
+        echo -n "Unmounting ramdisk... "
+        pkexec umount $MBV_RAMDISK_LOCATION/$2
+        if [[ $? -ne 0 ]]
+        then
+            echo "Failed!"
+            continue
+        fi
+        echo "Unmounted!"
+        echo "Cleaning up..."
+        rmdir $MBV_RAMDISK_LOCATION/$2
+        break
+    done
+    trap - SIGINT SIGTERM
+else
+    echo "Invalid subcommand, use mini_vault help to see subcommands."
+    exit 1
+fi
