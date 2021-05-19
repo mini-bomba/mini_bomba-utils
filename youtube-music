@@ -1,0 +1,34 @@
+#! /bin/bash
+VID="$@"
+# Ask user for url, if not given in args
+if [ -z "$VID" ]
+then
+    echo -n "No music video url/id given, please enter one now: "
+    read VID
+    if [ -z "$VID" ]
+    then
+        echo "No music video url/id given, exiting."
+        exit 1
+    fi
+fi
+
+# Create a temp directory (for easy playlist support)
+TMP_DIR=$(mktemp -d)
+
+# Download videos to temp directory
+echo "Downloading videos..."
+youtube-dl -o "$TMP_DIR/%(id)s" -f "bestaudio/best[height<=144]/best" "$VID"
+
+# Extract music to current directory
+echo "Extracting music..."
+for file in $(ls "$TMP_DIR")
+do
+    ffmpeg -i "$TMP_DIR/$file" "./$file.mp3"
+done
+
+# Cleanup temp files
+echo "Deleting temp files..."
+rm -rf "$TMP_DIR"
+echo "Done!"
+
+
