@@ -23,4 +23,5 @@ Script name/file | Documentation file | Language
 -----------------|--------------------|---------
 [passwordgen](/passwordgen) | [passwordgen.md](/passwordgen.md) | bash
 [mini_vault](/mini_vault) | [mini_vault.md](/mini_vault.md) | python3
+[youtube-music](/youtube-music) | [youtube-music.md](/youtube-music.md) | bash
 
