@@ -21,7 +21,7 @@ Most executable files in this repository will not include extensions specifying 
 
 Script name/file | Documentation file | Language
 -----------------|--------------------|---------
-[passwordgen](/passwordgen) | [passwordgen.md](/passwordgen.md) | bash
-[mini_vault](/mini_vault) | [mini_vault.md](/mini_vault.md) | python3
-[youtube-music](/youtube-music) | [youtube-music.md](/youtube-music.md) | bash
+[passwordgen](/bin/passwordgen) | [passwordgen.md](/docs/passwordgen.md) | bash
+[mini_vault](/bin/mini_vault) | [mini_vault.md](/docs/mini_vault.md) | python3
+[youtube-music](/bin/youtube-music) | [youtube-music.md](/docs/youtube-music.md) | bash
 

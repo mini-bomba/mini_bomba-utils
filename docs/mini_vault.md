@@ -1,4 +1,4 @@
-# mini_bomba vault
+# [mini_bomba vault](/bin/mini_vault)
 ## Encrypted file storage utility
 
 ### Requirements

@@ -1,4 +1,4 @@
-# passwordgen
+# [passwordgen](/bin/passwordgen)
 ## A simple CLI password generator (in python)
 
 ### Requirements

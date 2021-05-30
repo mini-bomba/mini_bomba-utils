@@ -1,4 +1,4 @@
-# youtube-music
+# [youtube-music](/bin/youtube-music)
 ## A simple script for downloading music using youtube-dl to mp3
 
 ### Requirements
