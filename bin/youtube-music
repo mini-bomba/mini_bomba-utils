@@ -52,7 +52,7 @@ fi
 
 # Extract music to current directory
 echo "Extracting music..."
-ls "$TMP_DIR" | xargs -P $MBYTM_FFMPEG_PROCS -n 1 sh -c "echo \"Processing \$0...\"; ffmpeg -i \"$TMP_DIR/\$0\" -v warning -y \"./\$0.mp3\"; echo \"\$0 processed\""
+ls "$TMP_DIR" | xargs -P $MBYTM_FFMPEG_PROCS -n 1 -r sh -c "echo \"Processing \$0...\"; ffmpeg -i \"$TMP_DIR/\$0\" -v warning -y \"./\$0.mp3\"; echo \"\$0 processed\""
 
 # Cleanup temp files
 echo "Deleting temp files..."
