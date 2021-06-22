@@ -16,6 +16,15 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+if [ -z "$MBYTM_DOWNLOAD_PROCS" ]
+then
+    MBYTM_DOWNLOAD_PROCS=10
+fi
+if [ -z "$MBYTM_FFMPEG_PROCS" ]
+then
+    MBYTM_FFMPEG_PROCS=4
+fi
+
 VID="$@"
 # Ask user for url, if not given in args
 if [ -z "$VID" ]
@@ -31,20 +40,23 @@ fi
 
 # Create a temp directory (for easy playlist support)
 TMP_DIR=$(mktemp -d)
-
+trap "rm -rf $TMP_DIR" EXIT
 # Download videos to temp directory
 echo "Downloading videos..."
-youtube-dl -o "$TMP_DIR/%(id)s" -f "bestaudio/best[height<=144]/best" "$VID"
+if echo "$VID" | grep -P "youtube\.com/.*list" > /dev/null
+then
+    youtube-dl --flat-playlist -j "$VID" | jq -r '"https://youtu.be/"+ .url' | xargs -P $MBYTM_DOWNLOAD_PROCS -n 1 -d "\n" -r sh -c "echo \"Downloading \$0...\"; youtube-dl -q -o \"$TMP_DIR/%(id)s\" -f \"bestaudio/best[height<=144]/best\" \$0; echo \"\$0 downloaded\""
+else
+    youtube-dl -o "$TMP_DIR/%(id)s" -f "bestaudio/best[height<=144]/best" "$VID"
+fi
 
 # Extract music to current directory
 echo "Extracting music..."
-for file in $(ls "$TMP_DIR")
-do
-    ffmpeg -i "$TMP_DIR/$file" "./$file.mp3"
-done
+ls "$TMP_DIR" | xargs -P $MBYTM_FFMPEG_PROCS -n 1 sh -c "echo \"Processing \$0...\"; ffmpeg -i \"$TMP_DIR/\$0\" -v warning -y \"./\$0.mp3\"; echo \"\$0 processed\""
 
 # Cleanup temp files
 echo "Deleting temp files..."
+trap - EXIT
 rm -rf "$TMP_DIR"
 echo "Done!"
 
