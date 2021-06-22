@@ -185,7 +185,7 @@ then
             tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $key_id -r $key_id --yes
         else
             file_size=$(du -sb $MBV_RAMDISK_LOCATION/$2 | awk '{print $1}')
-            cd $MBV_RAMDISK_LOCATION/$2 && ls | tar -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/$2.mbv
+            cd $MBV_RAMDISK_LOCATION/$2 && ls | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/$2.mbv
         fi
         cd $initial_wd
         if [[ $? -ne 0 ]]
