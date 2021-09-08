@@ -6,6 +6,9 @@
 * bash
 * youtube-dl
 * ffmpeg
+* grep
+* jq
+* xargs
 
 ### Installation
 
