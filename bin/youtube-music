@@ -16,6 +16,39 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# Check dependencies
+FAIL=0
+if ! which youtube-dl > /dev/null 2>&1
+then
+    echo "Missing required dependency: youtube-dl" >&2
+    FAIL=1
+fi
+if ! which ffmpeg > /dev/null 2>&1
+then
+    echo "Missing required dependency: ffmpeg" >&2
+    FAIL=1
+fi
+if ! which grep > /dev/null 2>&1
+then
+    echo "Missing required dependency: grep" >&2
+    FAIL=1
+fi
+if ! which jq > /dev/null 2>&1
+then
+    echo "Missing required dependency: jq" >&2
+    FAIL=1
+fi
+if ! which xargs > /dev/null 2>&1
+then
+    echo "Missing required dependency: xargs" >&2
+    FAIL=1
+fi
+
+if [ $FAIL -ne 0 ]
+then
+    exit 1
+fi
+# Set default settings if not overriden
 if [ -z "$MBYTM_DOWNLOAD_PROCS" ]
 then
     MBYTM_DOWNLOAD_PROCS=10

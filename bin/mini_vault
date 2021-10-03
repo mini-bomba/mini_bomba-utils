@@ -30,24 +30,57 @@ then
     MBV_RAMDISK_LOCATION=/tmp/mini_bomba_vault-$USER
 fi
 # Get the program used for privilege elevation
+FAIL=0
 if [[ $EUID == 0 ]]
 then
     # running as root, does not need to elevate privileges
-    echo "Note: You're running this as root, and therefore you're accessing root's vaults."
-    echo "If you want to access your own vaults, do not run this as root."
+    echo "Note: You're running this as root, and therefore you're accessing root's vaults." >&2
+    echo "If you want to access your own vaults, do not run this as root." >&2
     root_auth=
-elif ! [ -z "$MBV_USE_SUDO" ] || ! which pkexec > /dev/null
+elif ! [ -z "$MBV_USE_SUDO" ] || ! which pkexec > /dev/null 2>&1
 then
     # Use sudo (CLI auth)
-    if ! which sudo
+    if ! which sudo > /dev/null 2>&1
     then
-        echo "Missing dependency: sudo"
-        exit 1
+        echo "Missing required dependency: sudo (or pkexec, if MBV_USE_SUDO is not set)" >&2
+        FAIL=1
     fi
     root_auth=$(which sudo)
 else
     # Use pkexec (GUI auth)
     root_auth=$(which pkexec)
+fi
+# Check for dependencies
+if ! which gpg > /dev/null 2>&1
+then
+    echo "Missing required dependency: gpg" >&2
+    FAIL=1
+fi
+if ! which tar > /dev/null 2>&1
+then
+    echo "Missing required dependency: tar" >&2
+    FAIL=1
+fi
+if ! which gzip > /dev/null 2>&1
+then
+    echo "Missing required dependency: gzip" >&2
+    FAIL=1
+fi
+if ! which pv > /dev/null 2>&1
+then
+    echo "Missing required dependency: pv" >&2
+    FAIL=1
+fi
+if [ -z "$MBV_SKIP_OPEN" ] && ! which xdg-open > /dev/null 2>&1
+then
+    echo "Missing optional dependency: xdg-open" >&2
+    echo "Ramdisk location will not be shown in the file manager." >&2
+    MBV_SKIP_OPEN=1
+fi
+
+if [ $FAIL -ne 0 ]
+then
+    exit 1
 fi
 # Create the encrypted file directory if it is not there
 if ! [ -d $MBV_FILE_LOCATION ]
@@ -170,7 +203,10 @@ then
     cd $initial_wd
     echo "Done!"
     echo "Files ready in $MBV_RAMDISK_LOCATION/$2"
-    xdg-open $MBV_RAMDISK_LOCATION/$2 &
+    if [ -z "$MBV_SKIP_OPEN" ]
+    then
+        xdg-open $MBV_RAMDISK_LOCATION/$2 &
+    fi
     d=0
     while true
     do

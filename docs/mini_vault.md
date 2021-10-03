@@ -66,4 +66,4 @@ They and their meaning are listed below:
 * `MBV_FILE_LOCATION`: Specifies the location of encrypted `.mbv` files. Default value: `$HOME/.mini_bomba_vault`. May result in some vaults being unavailable, if stored in a different location than specified.
 * `MBV_RAMDISK_LOCATION`: Specifies the location of RAM disk mount points for temporary decrypted file storage. Default value: `/tmp/mini_bomba_vault-$USER`. Make sure to use a directory you have access to.
 * `MBV_USE_SUDO`: If set to any value, forces `sudo` (CLI auth) to be used instead of `pkexec` (GUI auth) for privilege elevation. 
-
+* `MBV_SKIP_OPEN`: If set to any value, will not open the ramdisk location in the default file manager.
