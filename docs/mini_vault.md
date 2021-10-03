@@ -8,6 +8,8 @@
 * tar
 * gzip (and gunzip)
 * pv
+* du
+* awk
 * pkexec or sudo
 * xdg-open (optional, one error will appear if missing, but the rest should work)
 

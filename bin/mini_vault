@@ -71,6 +71,16 @@ then
     echo "Missing required dependency: pv" >&2
     FAIL=1
 fi
+if ! which du > /dev/null 2>&1
+then
+    echo "Missing required dependency: du" >&2
+    FAIL=1
+fi
+if ! which awk > /dev/null 2>&1
+then
+    echo "Missing required dependency: awk" >&2
+    FAIL=1
+fi
 if [ -z "$MBV_SKIP_OPEN" ] && ! which xdg-open > /dev/null 2>&1
 then
     echo "Missing optional dependency: xdg-open" >&2
