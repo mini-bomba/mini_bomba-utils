@@ -74,6 +74,7 @@ fi
 # Create a temp directory (for easy playlist support)
 TMP_DIR=$(mktemp -d)
 trap "rm -rf $TMP_DIR" EXIT
+trap "exit 1" INT
 # Download videos to temp directory
 echo "Downloading videos..."
 if echo "$VID" | grep -P "youtube\.com/.*list" > /dev/null
@@ -89,7 +90,7 @@ ls "$TMP_DIR" | xargs -P $MBYTM_FFMPEG_PROCS -n 1 -r sh -c "echo \"Processing \$
 
 # Cleanup temp files
 echo "Deleting temp files..."
-trap - EXIT
+trap - EXIT INT
 rm -rf "$TMP_DIR"
 echo "Done!"
 
