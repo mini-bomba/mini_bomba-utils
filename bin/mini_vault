@@ -160,12 +160,17 @@ then
     if [[ $2 =~ ^~ ]]
     then
         echo "The vault name may not start with '~'!" >&2
-        echo "Vault files starting with '~' are reserved for currently saving vaults." >&2
+        echo "Vault files starting with '~' are reserved for partially saved vaults." >&2
         exit 1
     fi
     if [ -e $MBV_FILE_LOCATION/$2.mbv ]
     then
         echo "Vault '$2' already exists!" >&2
+        exit 1
+    fi
+    if [ -e $MBV_FILE_LOCATION/~$2.mbv ]
+    then
+        echo "Vault '$2' has a partially saved vault file!" >&2
         exit 1
     fi
     echo -n "Creating... "
@@ -186,7 +191,7 @@ then
     if [[ $2 =~ ^~ ]]
     then
         echo "The vault name may not start with '~'!" >&2
-        echo "Vault files starting with '~' are reserved for currently saving vaults." >&2
+        echo "Vault files starting with '~' are reserved for partially saved vaults." >&2
         echo "If you're looking to open the partially saved vault file, please manually rename it in $MBV_FILE_LOCATION" >&2
         exit 1
     fi
@@ -197,7 +202,7 @@ then
     fi
     if [ -e "$MBV_FILE_LOCATION/~$2.mbv" ]
     then
-        echo "Vault '$2' has a partially saved vault file '~$2'!" >&2
+        echo "Vault '$2' has a partially saved vault file '~$2.mbv'!" >&2
         echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
         exit 1
     fi
@@ -250,7 +255,7 @@ then
             tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes
         else
             file_size=$(du -sb $MBV_RAMDISK_LOCATION/$2 | awk '{print $1}')
-            cd $MBV_RAMDISK_LOCATION/$2 && ls | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/$2.mbv
+            cd $MBV_RAMDISK_LOCATION/$2 && ls -A | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/~$2.mbv
         fi
         if [[ $? -ne 0 ]]
         then
