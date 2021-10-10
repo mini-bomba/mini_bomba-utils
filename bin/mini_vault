@@ -154,12 +154,18 @@ elif [[ $1 == "create" ]]
 then
     if [ -z "$2" ]
     then 
-        echo "Missing required param: name" 
+        echo "Missing required param: name" >&2
         exit 1 
+    fi
+    if [[ $2 =~ ^~ ]]
+    then
+        echo "The vault name may not start with '~'!" >&2
+        echo "Vault files starting with '~' are reserved for currently saving vaults." >&2
+        exit 1
     fi
     if [ -e $MBV_FILE_LOCATION/$2.mbv ]
     then
-        echo "Vault '$2' already exists!"
+        echo "Vault '$2' already exists!" >&2
         exit 1
     fi
     echo -n "Creating... "
@@ -174,25 +180,38 @@ elif [[ $1 == "open" ]] || [[ $1 == "mount" ]]
 then
     if [ -z "$2" ]
     then 
-        echo "Missing required param: name" 
+        echo "Missing required param: name" >&2
         exit 1 
+    fi
+    if [[ $2 =~ ^~ ]]
+    then
+        echo "The vault name may not start with '~'!" >&2
+        echo "Vault files starting with '~' are reserved for currently saving vaults." >&2
+        echo "If you're looking to open the partially saved vault file, please manually rename it in $MBV_FILE_LOCATION" >&2
+        exit 1
     fi
     if ! [ -e $MBV_FILE_LOCATION/$2.mbv ]
     then
-        echo "Vault '$2' does not exist! Use mini_vault create to create a new one!"
+        echo "Vault '$2' does not exist! Use mini_vault create to create a new one!" >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/~$2.mbv" ]
+    then
+        echo "Vault '$2' has a partially saved vault file '~$2'!" >&2
+        echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
         exit 1
     fi
     echo "Checking used gpg key..."
     key_id=$(gpg --list-packets $MBV_FILE_LOCATION/$2.mbv | grep -oP "[A-F0-9]{16}" | head -n 1)
     if [ -z "$key_id" ]
     then
-        echo "Unable to get key used, aborting"
+        echo "Unable to get key used, aborting" >&2
         exit 1
     fi
     echo -n "Creating ramdisk... "
     if [ -e $MBV_RAMDISK_LOCATION/$2 ]
     then
-        echo "Error: Ramdisk location ($MBV_RAMDISK_LOCATION/$2) already exists!"
+        echo "Error: Ramdisk location ($MBV_RAMDISK_LOCATION/$2) already exists!" >&2
         exit 1
     fi
     mkdir $MBV_RAMDISK_LOCATION/$2
@@ -201,7 +220,7 @@ then
     then
         echo "Done!"
     else
-        echo "Failed, aborting!"
+        echo "Failed, aborting!" >&2
         rmdir $MBV_RAMDISK_LOCATION/$2
         exit 1
     fi
@@ -223,28 +242,31 @@ then
         trap "echo -e '\nReceived SIGINT/TERM, unmounting without saving'; $root_auth umount $MBV_RAMDISK_LOCATION/$2; rmdir $MBV_RAMDISK_LOCATION/$2; exit 1" SIGINT SIGTERM
         echo -n "Press return to save & unmount vault."
         read
-        trap "echo 'CTRL+C is currently disabled to prevent data loss.'" SIGINT SIGTERM
+        trap "echo 'CTRL+C is currently disabled to prevent data loss.' >&2" SIGINT SIGTERM
         echo "Saving... "
         if [ -z "$(ls -A $MBV_RAMDISK_LOCATION/$2)" ]
         then
-            echo -n "Directory empty, creating empty vault... "
-            tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $key_id -r $key_id --yes
+            echo -n "Directory empty, creating empty vault... " >&2
+            tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes
         else
             file_size=$(du -sb $MBV_RAMDISK_LOCATION/$2 | awk '{print $1}')
-            cd $MBV_RAMDISK_LOCATION/$2 && ls | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/$2.mbv
+            cd $MBV_RAMDISK_LOCATION/$2 && ls | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/$2.mbv
         fi
-        cd $initial_wd
         if [[ $? -ne 0 ]]
         then
-            echo "Failed!"
+            echo "Failed!" >&2
+            cd $initial_wd
             continue
         fi
+        cd $initial_wd
         echo "Saved!"
+        echo "Replacing current vault file with the new one..."
+        cp $MBV_FILE_LOCATION/~$2.mbv $MBV_FILE_LOCATION/$2.mbv && rm $MBV_FILE_LOCATION/~$2.mbv
         echo -n "Unmounting ramdisk... "
         $root_auth umount $MBV_RAMDISK_LOCATION/$2
         if [[ $? -ne 0 ]]
         then
-            echo "Failed!"
+            echo "Failed!" >&2
             continue
         fi
         echo "Unmounted!"
