@@ -243,7 +243,7 @@ then
     if [[ $? -eq 0 ]]
     then
         echo "Replacing current vault file with the new one..."
-        cp $MBV_FILE_LOCATION/~$3.mbv $MBV_FILE_LOCATION/$3.mbv && rm $MBV_FILE_LOCATION/~$3.mbv && (echo "Done!" && exit 0) || (echo "Failed!" && exit 1)
+        mv $MBV_FILE_LOCATION/~$3.mbv $MBV_FILE_LOCATION/$3.mbv && (echo "Done!" && exit 0) || (echo "Failed!" && exit 1)
     else
         echo "Failed!"
         exit 1
@@ -383,7 +383,7 @@ then
         cd $initial_wd
         echo "Saved!"
         echo "Replacing current vault file with the new one..."
-        cp $MBV_FILE_LOCATION/~$2.mbv $MBV_FILE_LOCATION/$2.mbv && rm $MBV_FILE_LOCATION/~$2.mbv
+        mv $MBV_FILE_LOCATION/~$2.mbv $MBV_FILE_LOCATION/$2.mbv
         echo -n "Unmounting ramdisk... "
         $root_auth umount $MBV_RAMDISK_LOCATION/$2
         if [[ $? -ne 0 ]]
