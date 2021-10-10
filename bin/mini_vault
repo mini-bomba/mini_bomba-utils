@@ -123,6 +123,8 @@ then
     echo "  list - list your vaults"
     echo "  create <name> [gpg key ID] - creates a new vault"
     echo "  open <name> - decrypts & mounts the vault"
+    echo "  import <directory> <name> [gpg key ID] - imports the contents of the directory into a vault file"
+    echo "  export <name> <directory> - exports the contents of the vault file into a directory"
     echo "  license - shows more info about the warranty & license"
     exit 0
 elif [[ $1 == "warranty" ]] || [[ $1 == "license" ]]
@@ -181,6 +183,121 @@ then
         tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $3 -r $3 && chmod 600 $MBV_FILE_LOCATION/$2.mbv && echo "Created!" || echo "Failed!"
     fi
     exit $?
+elif [[ $1 == "import" ]]
+then
+    if [ -z "$2" ]
+    then 
+        echo "Missing required params: input directory, vault name" >&2
+        exit 1 
+    fi
+    if [ -z "$3" ]
+    then 
+        echo "Missing required param: vault name" >&2
+        exit 1 
+    fi
+    if ! [ -d "$2" ]
+    then
+        echo "'$2' is not a directory!" >&2
+        exit 1
+    fi
+    if [[ -z "$(ls -A $2)" ]]
+    then
+        echo "Input directory '$2' is empty!" >&2
+        echo "Use 'mini_vault create' to create an empty vault instead." >&2
+        exit 1
+    fi
+    if [[ $3 =~ ^~ ]]
+    then
+        echo "The vault name may not start with '~'!" >&2
+        echo "Vault files starting with '~' are reserved for partially saved vaults." >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/~$3.mbv" ]
+    then
+        echo "Vault '$3' has a partially saved vault file '~$3.mbv'!" >&2
+        echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/$3.mbv" ]
+    then
+        echo "Vault '$3' already exists!" >&2
+        echo "Importing into this vault will cause its previous content to be overwritten!" >&2
+        echo -n "Enter 'YES' to continue: " >&2
+        read confirm
+        if [[ "$confirm" == "YES" ]]
+        then
+            echo "Overwriting previous vault..." >&2
+        else
+            echo "Aborted." >&2
+            exit 1
+        fi
+    fi
+    echo "Importing..."
+    file_size=$(du -sb $2 | awk '{print $1}')
+    if [ -z "$4" ]
+    then
+        cd $2 && ls -A | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$3.mbv --default-recipient-self --yes && chmod 600 $MBV_FILE_LOCATION/~$3.mbv
+    else
+        cd $2 && ls -A | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$3.mbv -u $4 -r $4 --yes && chmod 600 $MBV_FILE_LOCATION/~$3.mbv
+    fi
+    if [[ $? -eq 0 ]]
+    then
+        echo "Replacing current vault file with the new one..."
+        cp $MBV_FILE_LOCATION/~$3.mbv $MBV_FILE_LOCATION/$3.mbv && rm $MBV_FILE_LOCATION/~$3.mbv && (echo "Done!" && exit 0) || (echo "Failed!" && exit 1)
+    else
+        echo "Failed!"
+        exit 1
+    fi
+elif [[ $1 == "export" ]] || [[ $1 == "extract" ]]
+then
+    if [ -z "$2" ]
+    then 
+        echo "Missing required params: vault name, output directory" >&2
+        exit 1 
+    fi
+    if [ -z "$3" ]
+    then 
+        echo "Missing required param: output directory" >&2
+        exit 1 
+    fi
+    if [[ $2 =~ ^~ ]]
+    then
+        echo "The vault name may not start with '~'!" >&2
+        echo "Vault files starting with '~' are reserved for partially saved vaults." >&2
+        echo "If you're looking to open the partially saved vault file, please manually rename it in $MBV_FILE_LOCATION" >&2
+        exit 1
+    fi
+    if ! [ -e $MBV_FILE_LOCATION/$2.mbv ]
+    then
+        echo "Vault '$2' does not exist! Use mini_vault create to create a new one!" >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/~$2.mbv" ]
+    then
+        echo "Vault '$2' has a partially saved vault file '~$2.mbv'!" >&2
+        echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
+        exit 1
+    fi
+    if ! [ -d "$3" ]
+    then
+        echo "'$3' is not a directory!" >&2
+        exit 1
+    fi
+    if [ -n "$(ls -A $3)" ]
+    then
+        echo "'$3' is not empty!" >&2
+        exit 1
+    fi
+    echo "Exporting..."
+    cd $3
+    file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv | awk '{print $1}')
+    gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv | pv -s $file_size | tar -xz
+    if [ -z "$MBV_SKIP_OPEN" ]
+    then
+        xdg-open . &
+    fi
+    cd $initial_wd
+    echo "Done!"
 elif [[ $1 == "open" ]] || [[ $1 == "mount" ]]
 then
     if [ -z "$2" ]

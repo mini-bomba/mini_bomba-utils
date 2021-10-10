@@ -59,6 +59,14 @@ To unmount the RAM disk manually, run `sudo umount mbv-$USER-<vault name>`
 To delete a vault, you need to remove the associated `.mbv` file (which is just a `.tar.gz.gpg` file, but I decided to save them as `.mbv` ¯\\_(ツ)_/¯).
 They are usually located in `~/.mini_bomba_vault` (the location can be changed using envirnoment variables)
 
+#### Importing & Exporting
+
+You may sometimes want to extract a vault into a directory. (for example: if it's a big one and you don't have enough RAM to load it into)
+You can do this with the `mini_vault export <vault> <directory>` command. This simply extracts the contents of a vault into any empty directory.
+
+You can also import a directory stored on disk into a vault (or a vault that you cancelled saving by mistake) using `mini_vault import <directory> <vault> [key ID]`.
+If you're about to overwrite an existing vault with this command, you will be prompted to confirm. Does not remove the source directory.
+
 #### Partially saved vault files
 
 When the vault is being saved, it is first saved to a file with a `~` prefix.
@@ -66,7 +74,7 @@ If for any reason saving fails, the old vault state is preserved in it's old fil
 For this reason, vault names cannot begin with `~`.
 
 If a partially saved vault file of the vault you're trying to mount is detected (`~<vault name>`), the script will refuse to mount the vault.
-If this happens, you should either remove it (if you know it has no important changes) or rename it and attempt to mount it.
+If this happens, you should either remove it (if you know it has no important changes) or rename it and attempt to extract it.
 Note that partially saved files may be... parially saved and corrupted, therefore mounting them directly is not permitted.
 
 ### Using environment variables to alter program's behaviour
