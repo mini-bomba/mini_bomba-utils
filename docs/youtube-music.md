@@ -4,7 +4,7 @@
 ### Requirements
 
 * bash
-* youtube-dl
+* yt-dlp (youtube-dl may still work but yt-dlp is preferred)
 * ffmpeg
 * grep
 * jq

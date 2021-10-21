@@ -18,9 +18,15 @@
 
 # Check dependencies
 FAIL=0
-if ! which youtube-dl > /dev/null 2>&1
+if YTDL=$(which yt-dlp)
 then
-    echo "Missing required dependency: youtube-dl" >&2
+    echo "Using yt-dlp" >&2
+elif YTDL=$(which youtube-dl) 
+then
+    echo "yt-dlp not found; using fallback youtube-dl." >&2
+    echo "Consider installing yt-dlp if you experience throttling." >&2
+else
+    echo "Missing required dependency: yt-dlp" >&2
     FAIL=1
 fi
 if ! which ffmpeg > /dev/null 2>&1
@@ -79,9 +85,9 @@ trap "exit 1" INT
 echo "Downloading videos..."
 if echo "$VID" | grep -P "youtube\.com/.*list" > /dev/null
 then
-    youtube-dl --flat-playlist -j "$VID" | jq -r '"https://youtu.be/"+ .url' | xargs -P $MBYTM_DOWNLOAD_PROCS -n 1 -d "\n" -r sh -c "echo \"Downloading \$0...\"; youtube-dl -q -o \"$TMP_DIR/%(id)s\" -f \"bestaudio/best[height<=144]/best\" \$0; echo \"\$0 downloaded\""
+    $YTDL --flat-playlist -j "$VID" | jq -r '.url' | xargs -P $MBYTM_DOWNLOAD_PROCS -n 1 -d "\n" -r sh -c "echo \"Downloading \$0...\"; $YTDL -q -o \"$TMP_DIR/%(id)s\" -f \"bestaudio/best[height<=144]/best\" \$0; echo \"\$0 downloaded\""
 else
-    youtube-dl -o "$TMP_DIR/%(id)s" -f "bestaudio/best[height<=144]/best" "$VID"
+    $YTDL -o "$TMP_DIR/%(id)s" -f "bestaudio/best[height<=144]/best" "$VID"
 fi
 
 # Extract music to current directory
