@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+#    beep-file:
+#
+#    Copyright (C) 2021 mini_bomba
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import sys
+import subprocess
+import os
+import time
+import shutil
+
+beep = shutil.which("beep")
+if beep is None:
+    print("Missing required dependency: beep")
+    exit(1)
+if len(sys.argv) < 2:
+    print("Missing file path with beep pattern argument")
+    exit(1)
+elif not os.path.isfile(sys.argv[1]):
+    print(f"File '{sys.argv[1]}' does not exist")
+    exit(1)
+
+# t0 = time.perf_counter() # Debug feature: processing delay counter init
+with open(sys.argv[1], "r") as f:
+    for i, line in enumerate(f):
+        # remove comments
+        if "#" in line:
+            line = line[:line.index("#")]
+        line = line.strip()
+        # skip blank or comment lines
+        if len(line) == 0:
+            continue
+        params = line.split()
+        # verify syntax
+        if len(params) != 2:
+            print(f"Invalid params at line {i}")
+            continue
+        if not (params[0] == "x" or params[0].isdigit()):
+            print(f"Invalid frequency at line {i}")
+            params[0] = "x"
+        if not params[1].isdigit():
+            print(f"Invalid duration at line {i}")
+            continue
+        freq, t = params
+        t_int = int(t)
+        if freq != "x" and not 0 < int(freq) < 20000:
+            print(f"Frequency outside range at line {i}")
+            freq = "x"
+        if t_int <= 0:
+            continue
+        if freq == "x":
+            time.sleep(t_int / 1000)
+        else:
+            proc = subprocess.Popen([beep, "-f", freq, "-l", t])
+            if proc.wait() != 0:
+                print(f"beep command failed at line {i}")
+                exit(proc.returncode)
+        # Debug feature: processing delay counter
+        # print(f"Processing delay: {(time.perf_counter() - t0 - t_int * .001) // .001}ms")
+        # t0 = time.perf_counter()
