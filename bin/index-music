@@ -1,0 +1,73 @@
+#!/bin/bash
+#    index-music: a simple script for creating an index of music files dowloaded using youtube-music
+#
+#    Copyright (C) 2022 mini_bomba
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+FAIL=0
+if YTDL=$(which yt-dlp)
+then
+    echo "Using yt-dlp" >&2
+elif YTDL=$(which youtube-dl)
+then
+    echo "yt-dlp not found; using fallback youtube-dl." >&2
+    echo "Consider installing yt-dlp if you experience throttling." >&2
+else
+    echo "Missing required dependency: yt-dlp" >&2
+    FAIL=1
+fi
+export YTDL
+if ! which grep > /dev/null 2>&1
+then
+    echo "Missing required dependency: grep" >&2
+    FAIL=1
+fi
+if ! which jq > /dev/null 2>&1
+then
+    echo "Missing required dependency: jq" >&2
+    FAIL=1
+fi
+if ! which xargs > /dev/null 2>&1
+then
+    echo "Missing required dependency: xargs" >&2
+    FAIL=1
+fi
+if ! which sort > /dev/null 2>&1
+then
+    echo "Missing required dependency: sort" >&2
+    FAIL=1
+fi
+
+if [ $FAIL -ne 0 ]
+then
+    exit 1
+fi
+function index-file() {
+    if echo $1 | grep -Pv "^[\w\d-_]{11}\.mp3$" > /dev/null
+    then
+        echo "$1 Invalid youtube ID"
+        return
+    fi
+    ID=${1:0:-4}
+    DATA=$($YTDL --skip-download --print-json --no-warnings "https://youtu.be/$ID" | jq -r '.title')
+    if [[ -z "$DATA" ]]
+    then
+        echo "$1 Private or invalid youtube video"
+    else
+        echo "$1 $DATA"
+    fi
+}
+export -f index-file
+
+ls | xargs -P $(grep -c ^processor /proc/cpuinfo) -n 1 -d "\n" -r bash -c 'index-file "$0"' | sort

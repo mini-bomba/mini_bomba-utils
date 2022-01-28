@@ -24,5 +24,6 @@ Script name/file | Documentation file | Language
 [passwordgen](/bin/passwordgen) | [passwordgen.md](/docs/passwordgen.md) | python3
 [mini_vault](/bin/mini_vault) | [mini_vault.md](/docs/mini_vault.md) | bash
 [youtube-music](/bin/youtube-music) | [youtube-music.md](/docs/youtube-music.md) | bash
+[index-music](/bin/index-music) | [index-music.md](/docs/index-music.md) | bash
 [beep-file](/bin/beep-file) | [beep-file.md](/docs/beep-file.md) | python3
 
