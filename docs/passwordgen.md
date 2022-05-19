@@ -4,7 +4,8 @@
 ### Requirements
 
 * python3
-* tkinter (only if clipboard used)
+* tkinter (optional, for clipboard)
+* python-dbus (optional, for clipboard)
 
 ### Installation
 
@@ -21,7 +22,10 @@ Run the file from the terminal (by typing `passwordgen`). A random, url-safe str
 passwordgen accepts advanced parameters through environment variables.
 They and their meaning are listed below:
 
-`MBPASS_MODE`: Specifies where the generated password will be displayed. Possible values:
-* `both`: Default value. Prints the password on the terminal & copies it into the clipboard. Requires working `tkinter` module.
-* `copy`/`clipboard`: Copies the password into the clipboard without printing it on the terminal. Requires working `tkinter` module.
-* `print`/`terminal`: Prints the password on the terminal without copying it into the clipboard.
+* `MBPASS_MODE`: Specifies where the generated password will be displayed. Possible values:
+  * `print`/`terminal`: Default mode. Prints the password on the terminal.
+  * `copy`/`clipboard`: Copies the password into the clipboard. May require extra dependencies, see `MBPASS_CLIPBOARD`
+  * `both`: Prints the password on the terminal & copies it into the clipboard. May require extra dependencies, see `MBPASS_CLIPBOARD`
+* `MBPASS_CLIPBOARD`: Selects the method used to insert the password into your clipboard. Possible values:
+  * `tkinter`/`tk` - requires working `tkinter` module. Often the default value.
+  * `klipper`/`kde` - requires `python-dbus` module. Default if `XDG_SESSION_DESKTOP` is set to `KDE`
