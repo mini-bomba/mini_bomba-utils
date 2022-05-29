@@ -22,6 +22,11 @@ Run the file from the terminal (by typing `passwordgen`). A random, url-safe str
 passwordgen accepts advanced parameters through environment variables.
 They and their meaning are listed below:
 
+* `MBPASS_TYPE`: Specifies the type of generated password and the allowed character set. Possible values:
+  * `urlsafe`: Default. Uses `secrets.token_urlsafe()` to generate the password. Can contain letters, numbers and the characters: `-_`
+  * `alphanum`: Picks from a list of alphanumerical characters. Can contain letters and numbers
+  * `ascii`: Picks from a list of printable ascii characters, excluding whitespace. Can contain letters, numbers and punctuation.
+  * `base64`/`b64`: Encodes bytes from `secrets.token_bytes()` using base64 to generate the password.
 * `MBPASS_MODE`: Specifies where the generated password will be displayed. Possible values:
   * `print`/`terminal`: Default mode. Prints the password on the terminal.
   * `copy`/`clipboard`: Copies the password into the clipboard. May require extra dependencies, see `MBPASS_CLIPBOARD`
