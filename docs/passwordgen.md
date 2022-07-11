@@ -35,4 +35,4 @@ They and their meaning are listed below:
 * `MBPASS_CLIPBOARD`: Selects the method used to insert the password into your clipboard. Possible values:
   * `tkinter`/`tk` - requires a working `tkinter` module. Often the default value.
   * `klipper`/`kde` - requires the `python-dbus` module. Default if `XDG_SESSION_DESKTOP` is set to `KDE`
-  * `termux` - requires the `termux-api` package. Default if the `termux-clipboard-set` binary is detected on PATH
+  * `termux`/`android` - requires the `termux-api` package. Default if the `termux-clipboard-set` binary is detected on PATH
