@@ -5,7 +5,8 @@
 
 * python3
 * tkinter (optional, for clipboard)
-* python-dbus (optional, for clipboard)
+* python-dbus (optional, for clipboard on kde)
+* termux-api (optional, for clipboard on termux)
 
 ### Installation
 
@@ -15,7 +16,7 @@ Clone the repo & add it to the PATH, or download the file, put it in a directory
 
 ### Usage
 
-Run the file from the terminal (by typing `passwordgen`). A random, url-safe string of characters will be generated & displayed in the terminal (automatic copy soon™?). By default the string will be 64 characters long, but that can be changed by including a number after the command.
+Run the file from the terminal (by typing `passwordgen`). A random, url-safe string of characters will be generated & displayed in the terminal. By default the string will be 64 characters long, but that can be changed by including a number after the command.
 
 ### Using environment variables to alter program's behaviour
 
@@ -32,5 +33,6 @@ They and their meaning are listed below:
   * `copy`/`clipboard`: Copies the password into the clipboard. May require extra dependencies, see `MBPASS_CLIPBOARD`
   * `both`: Prints the password on the terminal & copies it into the clipboard. May require extra dependencies, see `MBPASS_CLIPBOARD`
 * `MBPASS_CLIPBOARD`: Selects the method used to insert the password into your clipboard. Possible values:
-  * `tkinter`/`tk` - requires working `tkinter` module. Often the default value.
-  * `klipper`/`kde` - requires `python-dbus` module. Default if `XDG_SESSION_DESKTOP` is set to `KDE`
+  * `tkinter`/`tk` - requires a working `tkinter` module. Often the default value.
+  * `klipper`/`kde` - requires the `python-dbus` module. Default if `XDG_SESSION_DESKTOP` is set to `KDE`
+  * `termux` - requires the `termux-api` package. Default if the `termux-clipboard-set` binary is detected on PATH
