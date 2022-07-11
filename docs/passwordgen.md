@@ -20,7 +20,7 @@ Run the file from the terminal (by typing `passwordgen`). A random, url-safe str
 
 ### Using environment variables to alter program's behaviour
 
-passwordgen accepts advanced parameters through environment variables.
+passwordgen accepts advanced parameters through environment variables. The variable names are case sensitive. Variable values are *not* case sensitive.
 They and their meaning are listed below:
 
 * `MBPASS_TYPE`: Specifies the type of generated password and the allowed character set. Possible values:
