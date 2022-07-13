@@ -1,0 +1,71 @@
+#!/usr/bin/env python3
+#    kclip: xclip, but for KDE's klipper
+#
+#    Copyright (C) 2022 mini_bomba
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import dbus
+import argparse
+import sys
+import os
+
+# Create argument parser
+parser = argparse.ArgumentParser(prog="kclip", description="xclip, but for KDE's klipper")
+parser.add_argument('-i', '--in', dest='input', action='store_true', help='set clipboard contents from stdin or files (default)')
+parser.add_argument('-o', '--out', dest='output', action='store_true', help='read clipboard contents to stdout')
+parser.add_argument('-r', '--rmlastnl', action='store_true', help='remove last newline character if present')
+parser.add_argument('files', nargs='*', help='files to read from (uses stdin if not specified, only in --in mode)')
+
+# Parse args
+args = parser.parse_args()
+if args.input and args.output:
+    print('Cannot specify both --in and --out modes!', file=sys.stderr)
+    exit(1)
+# Set --in mode as default
+if not args.input and not args.output:
+    args.input = True
+
+# Connect to klipper over DBus
+bus = dbus.SessionBus()
+klipper = dbus.Interface(bus.get_object('org.kde.klipper', '/klipper'), dbus_interface='org.kde.klipper.klipper')
+if args.input:  # Set content
+    result: str
+    if len(args.files) > 0:  # Files specified, read from them
+        result = []
+        for file in args.files:
+            try:
+                with open(file, 'r') as f:
+                    result.append(f.read())
+            except OSError as e:
+                print(f'kclip: {e.filename}: {e.strerror}', file=sys.stderr)
+                exit(1)
+        result = "".join(result)  # Join files into one string
+    else:
+        result = sys.stdin.read()  # read from stdin
+
+    if args.rmlastnl and result.endswith('\n'):  # if -r was passed, remove last newline
+        result = result[:-1]
+
+    # Send to klipper
+    klipper.setClipboardContents(result)
+elif args.output:  # Get content
+    result: str = klipper.getClipboardContents()
+
+    if args.rmlastnl and result.endswith('\n'):  # if -r was passed, remove last newline
+        result = result[:-1]
+
+    print(result, end='')
+else:
+    assert False, 'no mode specified???'
