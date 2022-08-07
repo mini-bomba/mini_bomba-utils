@@ -28,6 +28,7 @@ They and their meaning are listed below:
   * `alphanum`: Picks from a list of alphanumerical characters. Can contain letters and numbers
   * `ascii`: Picks from a list of printable ascii characters, excluding whitespace. Can contain letters, numbers and punctuation.
   * `base64`/`b64`: Encodes bytes from `secrets.token_bytes()` using base64 to generate the password.
+  * `hex`: Uses `secrets.token_hex()` to generate the password. Can contain numbers and lowercase letters a-f.
 * `MBPASS_MODE`: Specifies where the generated password will be displayed. Possible values:
   * `print`/`terminal`: Default mode. Prints the password on the terminal.
   * `copy`/`clipboard`: Copies the password into the clipboard. May require extra dependencies, see `MBPASS_CLIPBOARD`
