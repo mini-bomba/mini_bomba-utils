@@ -4,7 +4,8 @@
 ### Requirements
 
 * python
-* beep
+* `pcspkr` kernel module must be loaded
+* `/dev/input/by-path/platform-pcspkr-event-spkr` must be writable by the current user ([See Arch Wiki](https://wiki.archlinux.org/title/PC_speaker#Run_as_non-root_user))
 
 ### Installation
 

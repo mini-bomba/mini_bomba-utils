@@ -17,57 +17,87 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import sys
-import subprocess
 import os
 import time
-import shutil
+import struct
+from typing import BinaryIO
 
-beep = shutil.which("beep")
-if beep is None:
-    print("Missing required dependency: beep")
-    exit(1)
-if len(sys.argv) < 2:
-    print("Missing file path with beep pattern argument")
-    exit(1)
-elif not os.path.isfile(sys.argv[1]):
-    print(f"File '{sys.argv[1]}' does not exist")
-    exit(1)
+input_event = struct.Struct("16xHHI")
+EV_SND = 0x12
+SND_TONE = 0x02
 
-# t0 = time.perf_counter() # Debug feature: processing delay counter init
-with open(sys.argv[1], "r") as f:
-    for i, line in enumerate(f):
-        # remove comments
-        if "#" in line:
-            line = line[:line.index("#")]
-        line = line.strip()
-        # skip blank or comment lines
-        if len(line) == 0:
-            continue
-        params = line.split()
-        # verify syntax
-        if len(params) != 2:
-            print(f"Invalid params at line {i}")
-            continue
-        if not (params[0] == "x" or params[0].isdigit()):
-            print(f"Invalid frequency at line {i}")
-            params[0] = "x"
-        if not params[1].isdigit():
-            print(f"Invalid duration at line {i}")
-            continue
-        freq, t = params
-        t_int = int(t)
-        if freq != "x" and not 0 < int(freq) < 20000:
-            print(f"Frequency outside range at line {i}")
-            freq = "x"
-        if t_int <= 0:
-            continue
-        if freq == "x":
-            time.sleep(t_int / 1000)
-        else:
-            proc = subprocess.Popen([beep, "-f", freq, "-l", t])
-            if proc.wait() != 0:
-                print(f"beep command failed at line {i}")
-                exit(proc.returncode)
-        # Debug feature: processing delay counter
-        # print(f"Processing delay: {(time.perf_counter() - t0 - t_int * .001) // .001}ms")
-        # t0 = time.perf_counter()
+
+class BeepDriver:
+    fd: BinaryIO
+
+    def __init__(self):
+        self.fd = open("/dev/input/by-path/platform-pcspkr-event-spkr", "wb", buffering=0)
+
+    def __enter__(self):
+        self.fd.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.set_tone(0)
+        self.fd.__exit__(exc_type, exc_val, exc_tb)
+
+    def set_tone(self, freq: int):
+        self.fd.write(input_event.pack(EV_SND, SND_TONE, freq))
+    
+    def beep(self, freq: int, duration: float):
+        self.set_tone(freq)
+        time.sleep(duration)
+        self.set_tone(0)
+
+
+def process_file(file_path: str):
+    with open(file_path, "r") as f:
+        with BeepDriver() as beep:
+            for i, line in enumerate(f):
+                # remove comments
+                try:
+                    line = line[:line.index("#")]
+                except ValueError:
+                    pass
+                line = line.strip()
+                # skip blank or comment lines
+                if len(line) == 0:
+                    continue
+                params = line.split()
+
+                # verify syntax
+                if len(params) != 2:
+                    print(f"Invalid param count at line {i}")
+                    continue
+                if params[0] == "x":  # convert x to frequency of 0 (silent)
+                    params[0] = 0
+                elif not params[0].isdigit():
+                    print(f"Invalid frequency at line {i}")
+                    params[0] = 0
+                if not params[1].isdigit():
+                    print(f"Invalid duration at line {i}")
+                    continue
+
+                # parse as ints and do final validation
+                frequency, duration = map(int, params)
+                if frequency < 0:
+                    print(f"Negative frequency at line {i}")
+                    freq = 0
+                if duration <= 0:
+                    print(f"Zero or negative duration at line {i}")
+                    continue
+
+                # Execute command
+                beep.set_tone(frequency)
+                time.sleep(duration / 1000)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Missing file path with beep pattern argument")
+        exit(1)
+    elif not os.path.isfile(sys.argv[1]):
+        print(f"File '{sys.argv[1]}' does not exist")
+        exit(1)
+
+    process_file(sys.argv[1])
