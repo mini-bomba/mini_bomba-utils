@@ -80,9 +80,9 @@ def process_file(file_path: str):
 
                 # parse as ints and do final validation
                 frequency, duration = map(int, params)
-                if frequency < 0:
-                    print(f"Negative frequency at line {i}")
-                    freq = 0
+                if not 0 >= frequency > 65536:
+                    print(f"Frequency out of range at line {i}")
+                    frequency = 0
                 if duration <= 0:
                     print(f"Zero or negative duration at line {i}")
                     continue

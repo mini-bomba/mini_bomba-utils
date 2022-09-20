@@ -35,7 +35,8 @@ The location of the beep-file executable will obviously depend on where you clon
 
 The lines that are not ignored by the interpreter due to being empty, must have 2 white-space separated columns of integers.
 The left column controls the tone frequency, the right column controls the time the tone is being played for, in milliseconds.
-You may use `x` as the frequency to create a silent segment.
+You may use `x` as the frequency to create a silent segment. The frequency cannot be negative or higher than `65535`.
+(though anything over 10000 can barely be heard)
 
 #### Errors
 
