@@ -42,6 +42,3 @@ You may use `x` as the frequency to create a silent segment.
 If a syntax error is found, the segment may be skipped or silenced, depending on the error.
 Issues with the frequency column produce a silent segment, issues with the time column or the count of columns skip the segment.<br>
 In all cases of a syntax error, an error message is printed.
-
-If the `beep` command (the program beep-file uses to control the PC Speaker) fails (returns a non-0 code), the interpreter 
-exits with the code of the `beep` command.
