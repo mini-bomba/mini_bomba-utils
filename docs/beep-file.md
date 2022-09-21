@@ -38,6 +38,25 @@ The left column controls the tone frequency, the right column controls the time 
 You may use `x` as the frequency to create a silent segment. The frequency cannot be negative or higher than `65535`.
 (though anything over 10000 can barely be heard)
 
+#### Loops
+
+Simple loops can be created by using `[ <iteration count>` to open the loop and `]` to close it.
+Any code between those characters will be repeated `<iteration count>` times. Nested loops are supported.
+
+Example script using nested loops:
+```
+#!/home/mini_bomba/mini_bomba-utils/bin/beep-file
+150 100
+[ 5
+    200 100
+    [ 3
+        500 100
+        x   500
+    ]
+]
+350 100
+```
+
 #### Errors
 
 If a syntax error is found, the segment may be skipped or silenced, depending on the error.

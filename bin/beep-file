@@ -20,6 +20,7 @@ import sys
 import os
 import time
 import struct
+import dataclasses
 from typing import BinaryIO
 
 input_event = struct.Struct("16xHHI")
@@ -50,10 +51,31 @@ class BeepDriver:
         self.set_tone(0)
 
 
+@dataclasses.dataclass(slots=True)
+class LoopFrame:
+    start_pos: int
+    start_line: int
+    target: int
+    i: int
+
+    def __init__(self, start_pos: int, start_line: int, target: int):
+        self.start_pos = start_pos
+        self.start_line = start_line
+        self.target = target
+        self.i = 1
+
+    def should_loop(self) -> bool:
+        return self.i < self.target
+
+
 def process_file(file_path: str):
     with open(file_path, "r") as f:
         with BeepDriver() as beep:
-            for i, line in enumerate(f):
+            line_number = 0
+            loop_stack: list[LoopFrame] = []
+            while len(line := f.readline()) > 0:
+                line_number += 1
+                print(f"{line_number}: {line.rstrip()}")
                 # remove comments
                 try:
                     line = line[:line.index("#")]
@@ -65,31 +87,53 @@ def process_file(file_path: str):
                     continue
                 params = line.split()
 
-                # verify syntax
-                if len(params) != 2:
-                    print(f"Invalid param count at line {i}")
-                    continue
-                if params[0] == "x":  # convert x to frequency of 0 (silent)
-                    params[0] = 0
-                elif not params[0].isdigit():
-                    print(f"Invalid frequency at line {i}")
-                    params[0] = 0
-                if not params[1].isdigit():
-                    print(f"Invalid duration at line {i}")
-                    continue
+                # match instructions
+                match params:
+                    case ("[", iterations):  # begin loop
+                        if not iterations.isdigit() or int(iterations) < 1:
+                            print(f"Invalid loop iteration count at {line_number}")
+                            iterations = 1
+                        loop_stack.append(LoopFrame(f.tell(), line_number, int(iterations)))
+                    case ("]",):  # end loop
+                        try:
+                            frame = loop_stack[-1]
+                        except IndexError:
+                            print(f"No loop to end at line {line_number}")
+                            continue
 
-                # parse as ints and do final validation
-                frequency, duration = map(int, params)
-                if not 0 >= frequency > 65536:
-                    print(f"Frequency out of range at line {i}")
-                    frequency = 0
-                if duration <= 0:
-                    print(f"Zero or negative duration at line {i}")
-                    continue
+                        if frame.should_loop():
+                            frame.i += 1
+                            line_number = frame.start_line
+                            f.seek(frame.start_pos)
+                        else:
+                            del loop_stack[-1]
+                    case (frequency, duration):  # play tone
+                        if frequency == "x":  # convert x to frequency of 0 (silent)
+                            frequency = 0
+                        elif not frequency.isdigit():
+                            print(f"Invalid frequency at line {line_number}")
+                            frequency = 0
+                        if not duration.isdigit():
+                            print(f"Invalid duration at line {line_number}")
+                            continue
 
-                # Execute command
-                beep.set_tone(frequency)
-                time.sleep(duration / 1000)
+                        # parse as ints and do final validation
+                        frequency, duration = int(frequency), int(duration)
+                        if not 0 <= frequency < 65536:
+                            print(f"Frequency out of range at line {line_number}")
+                            frequency = 0
+                        if duration <= 0:
+                            print(f"Zero or negative duration at line {line_number}")
+                            continue
+
+                        # Execute command
+                        beep.set_tone(frequency)
+                        time.sleep(duration / 1000)
+                    case _:
+                        print(f"Invalid instruction at line {line_number}")
+
+            if len(loop_stack) > 0:  # if anything is left on the loop stack, a loop was not closed
+                print(f"Unclosed loops at lines: {', '.join(str(frame.start_line) for frame in loop_stack)}")
 
 
 if __name__ == "__main__":
@@ -97,7 +141,7 @@ if __name__ == "__main__":
         print("Missing file path with beep pattern argument")
         exit(1)
     elif not os.path.isfile(sys.argv[1]):
-        print(f"File '{sys.argv[1]}' does not exist")
+        print(f"File '{sys.argv[1]}' is not a file")
         exit(1)
 
     process_file(sys.argv[1])
