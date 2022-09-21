@@ -75,7 +75,6 @@ def process_file(file_path: str):
             loop_stack: list[LoopFrame] = []
             while len(line := f.readline()) > 0:
                 line_number += 1
-                print(f"{line_number}: {line.rstrip()}")
                 # remove comments
                 try:
                     line = line[:line.index("#")]
