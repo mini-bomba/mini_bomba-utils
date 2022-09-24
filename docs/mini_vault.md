@@ -6,7 +6,8 @@
 * bash
 * gpg
 * tar
-* gzip (and gunzip)
+* gzip (and gunzip, used for version 1 compatibility)
+* zstd
 * pv
 * du
 * awk
@@ -76,6 +77,12 @@ For this reason, vault names cannot begin with `~`.
 If a partially saved vault file of the vault you're trying to mount is detected (`~<vault name>`), the script will refuse to mount the vault.
 If this happens, you should either remove it (if you know it has no important changes) or rename it and attempt to extract it.
 Note that partially saved files may be... parially saved and corrupted, therefore mounting them directly is not permitted.
+
+#### Updating an mbv vault (version 1/gzip) to mbv2 (version 2/zstd)
+
+To update an old-format vault to the most recent format, use the `convert <name>` subcommand.
+
+Note: Any old-format vaults should continue to work without updates needed. Update to take advantage of new compression standards.
 
 ### Using environment variables to alter program's behaviour
 

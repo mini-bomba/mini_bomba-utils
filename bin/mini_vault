@@ -1,7 +1,7 @@
 #! /bin/bash
 #    mini_bomba vault: encrypted file storage utility
 #
-#    Copyright (C) 2021 mini_bomba
+#    Copyright (C) 2021-2022 mini_bomba
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,11 @@ then
 fi
 if ! which gzip > /dev/null 2>&1
 then
-    echo "Missing required dependency: gzip" >&2
+    echo "Missing recommended dependency: gzip" >&2
+fi
+if ! which zstd > /dev/null 2>&1
+then
+    echo "Missing required dependency: zstd" >&2
     FAIL=1
 fi
 if ! which pv > /dev/null 2>&1
@@ -125,6 +129,7 @@ then
     echo "  open <name> - decrypts & mounts the vault"
     echo "  import <directory> <name> [gpg key ID] - imports the contents of the directory into a vault file"
     echo "  export <name> <directory> - exports the contents of the vault file into a directory"
+    echo "  convert <name> - converts an mbv vault to mbv2 (gzip -> ZStandard compression)"
     echo "  license - shows more info about the warranty & license"
     exit 0
 elif [[ $1 == "warranty" ]] || [[ $1 == "license" ]]
@@ -165,12 +170,12 @@ then
         echo "Vault files starting with '~' are reserved for partially saved vaults." >&2
         exit 1
     fi
-    if [ -e $MBV_FILE_LOCATION/$2.mbv ]
+    if [ -e "$MBV_FILE_LOCATION/$2.mbv" ] || [ -e "$MBV_FILE_LOCATION/$2.mbv2" ]
     then
         echo "Vault '$2' already exists!" >&2
         exit 1
     fi
-    if [ -e $MBV_FILE_LOCATION/~$2.mbv ]
+    if [ -e "$MBV_FILE_LOCATION/~$2.mbv" ] || [ -e "$MBV_FILE_LOCATION/~$2.mbv2" ]
     then
         echo "Vault '$2' has a partially saved vault file!" >&2
         exit 1
@@ -178,9 +183,9 @@ then
     echo -n "Creating... "
     if [ -z "$3" ]
     then
-        tar -czT /dev/null | gpg --encrypt --default-recipient-self -o $MBV_FILE_LOCATION/$2.mbv && chmod 600 $MBV_FILE_LOCATION/$2.mbv && echo "Created!" || echo "Failed!"
+        tar --zstd  -cT/dev/null | gpg --encrypt --default-recipient-self -o $MBV_FILE_LOCATION/$2.mbv2 && chmod 600 $MBV_FILE_LOCATION/$2.mbv2 && echo "Created!" || echo "Failed!"
     else
-        tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv -u $3 -r $3 && chmod 600 $MBV_FILE_LOCATION/$2.mbv && echo "Created!" || echo "Failed!"
+        tar --zstd -cT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/$2.mbv2 -u $3 -r $3 && chmod 600 $MBV_FILE_LOCATION/$2.mbv2 && echo "Created!" || echo "Failed!"
     fi
     exit $?
 elif [[ $1 == "import" ]]
@@ -218,7 +223,13 @@ then
         echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
         exit 1
     fi
-    if [ -e "$MBV_FILE_LOCATION/$3.mbv" ]
+    if [ -e "$MBV_FILE_LOCATION/~$3.mbv2" ]
+    then
+        echo "Vault '$3' has a partially saved vault file '~$3.mbv2'!" >&2
+        echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/$3.mbv" ] || [ -e "$MBV_FILE_LOCATION/$3.mbv2" ]
     then
         echo "Vault '$3' already exists!" >&2
         echo "Importing into this vault will cause its previous content to be overwritten!" >&2
@@ -236,14 +247,19 @@ then
     file_size=$(du -sb $2 | awk '{print $1}')
     if [ -z "$4" ]
     then
-        cd $2 && ls -A | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$3.mbv --default-recipient-self --yes && chmod 600 $MBV_FILE_LOCATION/~$3.mbv
+        cd $2 && ls -A | tar --verbatim-files-from --zstd -cT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$3.mbv2 --default-recipient-self --yes && chmod 600 $MBV_FILE_LOCATION/~$3.mbv2
     else
-        cd $2 && ls -A | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$3.mbv -u $4 -r $4 --yes && chmod 600 $MBV_FILE_LOCATION/~$3.mbv
+        cd $2 && ls -A | tar --verbatim-files-from --zstd -cT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$3.mbv2 -u $4 -r $4 --yes && chmod 600 $MBV_FILE_LOCATION/~$3.mbv2
     fi
     if [[ $? -eq 0 ]]
     then
-        echo "Replacing current vault file with the new one..."
-        mv $MBV_FILE_LOCATION/~$3.mbv $MBV_FILE_LOCATION/$3.mbv && (echo "Done!" && exit 0) || (echo "Failed!" && exit 1)
+        echo "Moving vault into place..."
+        mv $MBV_FILE_LOCATION/~$3.mbv2 $MBV_FILE_LOCATION/$3.mbv2 && (echo "Done!" && exit 0) || (echo "Failed!" && exit 1)
+        if [ -e "$MBV_FILE_LOCATION/$3.mbv" ]
+        then
+            echo "Removing old vault..."
+            rm "$MBV_FILE_LOCATION/$3.mbv"
+        fi
     else
         echo "Failed!"
         exit 1
@@ -267,7 +283,7 @@ then
         echo "If you're looking to open the partially saved vault file, please manually rename it in $MBV_FILE_LOCATION" >&2
         exit 1
     fi
-    if ! [ -e $MBV_FILE_LOCATION/$2.mbv ]
+    if ! [ -e "$MBV_FILE_LOCATION/$2.mbv" ] && ! [ -e "$MBV_FILE_LOCATION/$2.mbv2" ]
     then
         echo "Vault '$2' does not exist! Use mini_vault create to create a new one!" >&2
         exit 1
@@ -276,6 +292,18 @@ then
     then
         echo "Vault '$2' has a partially saved vault file '~$2.mbv'!" >&2
         echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/~$2.mbv2" ]
+    then
+        echo "Vault '$2' has a partially saved vault file '~$2.mbv2'!" >&2
+        echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/$2.mbv" ] && [ -e "$MBV_FILE_LOCATION/$2.mbv2" ]
+    then
+        echo "Vault '$2' has two versions: '$2.mbv' and '$2.mbv2'!" >&2
+        echo "Please manually rename or delete one of the versions in $MBV_FILE_LOCATION" >&2
         exit 1
     fi
     if ! [ -d "$3" ]
@@ -290,8 +318,15 @@ then
     fi
     echo "Exporting..."
     cd $3
-    file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv | awk '{print $1}')
-    gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv | pv -s $file_size | tar -xz
+    if [ -e "$MBV_FILE_LOCATION/$2.mbv" ]
+    then
+        file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv | awk '{print $1}')
+        gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv | pv -s $file_size | tar -xz
+    elif [ -e "$MBV_FILE_LOCATION/$2.mbv2" ]
+    then
+        file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv2 | awk '{print $1}')
+        gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv2 | pv -s $file_size | tar -x --zstd
+    fi
     if [ -z "$MBV_SKIP_OPEN" ]
     then
         xdg-open . &
@@ -312,7 +347,7 @@ then
         echo "If you're looking to open the partially saved vault file, please manually rename it in $MBV_FILE_LOCATION" >&2
         exit 1
     fi
-    if ! [ -e $MBV_FILE_LOCATION/$2.mbv ]
+    if ! [ -e $MBV_FILE_LOCATION/$2.mbv ] && ! [ -e $MBV_FILE_LOCATION/$2.mbv2 ]
     then
         echo "Vault '$2' does not exist! Use mini_vault create to create a new one!" >&2
         exit 1
@@ -323,8 +358,28 @@ then
         echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
         exit 1
     fi
+    if [ -e "$MBV_FILE_LOCATION/~$2.mbv2" ]
+    then
+        echo "Vault '$2' has a partially saved vault file '~$2.mbv2'!" >&2
+        echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/$2.mbv" ] && [ -e "$MBV_FILE_LOCATION/$2.mbv2" ]
+    then
+        echo "Vault '$2' has two versions: '$2.mbv' and '$2.mbv2'!" >&2
+        echo "Please manually rename or delete one of the versions in $MBV_FILE_LOCATION" >&2
+        exit 1
+    fi
     echo "Checking used gpg key..."
-    key_id=$(gpg --list-packets $MBV_FILE_LOCATION/$2.mbv | grep -oP "[A-F0-9]{16}" | head -n 1)
+    if [ -e "$MBV_FILE_LOCATION/$2.mbv" ]
+    then
+        VAULT_VERSION=1
+        key_id=$(gpg --list-packets $MBV_FILE_LOCATION/$2.mbv | grep -oP "[A-F0-9]{16}" | head -n 1)
+    elif [ -e "$MBV_FILE_LOCATION/$2.mbv2" ]
+    then
+        VAULT_VERSION=2
+        key_id=$(gpg --list-packets $MBV_FILE_LOCATION/$2.mbv2 | grep -oP "[A-F0-9]{16}" | head -n 1)
+    fi
     if [ -z "$key_id" ]
     then
         echo "Unable to get key used, aborting" >&2
@@ -349,8 +404,15 @@ then
     trap "echo 'Received SIGINT/TERM, aborting'; cd $initial_wd; $root_auth umount $MBV_RAMDISK_LOCATION/$2; rmdir $MBV_RAMDISK_LOCATION/$2; exit 1" SIGINT SIGTERM
     echo "Decrypting & extracting files... "
     cd $MBV_RAMDISK_LOCATION/$2
-    file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv | awk '{print $1}')
-    gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv | pv -s $file_size | tar -xz
+    if [ $VAULT_VERSION -eq 1 ]
+    then
+        file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv | awk '{print $1}')
+        gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv | pv -s $file_size | tar -xz
+    elif [ $VAULT_VERSION -eq 2 ]
+    then
+        file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv2 | awk '{print $1}')
+        gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv2 | pv -s $file_size | tar -x --zstd
+    fi
     cd $initial_wd
     echo "Done!"
     echo "Files ready in $MBV_RAMDISK_LOCATION/$2"
@@ -369,10 +431,22 @@ then
         if [ -z "$(ls -A $MBV_RAMDISK_LOCATION/$2)" ]
         then
             echo -n "Directory empty, creating empty vault... " >&2
-            tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes
+            if [ $VAULT_VERSION -eq 1 ]
+            then
+                tar -czT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes
+            elif [ $VAULT_VERSION -eq 2 ]
+            then
+                tar --zstd -cT /dev/null | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv2 -u $key_id -r $key_id --yes
+            fi
         else
             file_size=$(du -sb $MBV_RAMDISK_LOCATION/$2 | awk '{print $1}')
-            cd $MBV_RAMDISK_LOCATION/$2 && ls -A | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/~$2.mbv
+            if [ $VAULT_VERSION -eq 1 ]
+            then
+                cd $MBV_RAMDISK_LOCATION/$2 && ls -A | tar --verbatim-files-from -czT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/~$2.mbv
+            elif [ $VAULT_VERSION -eq 2 ]
+            then
+                cd $MBV_RAMDISK_LOCATION/$2 && ls -A | tar --verbatim-files-from --zstd -cT - | pv -s $file_size | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv2 -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/~$2.mbv2
+            fi
         fi
         if [[ $? -ne 0 ]]
         then
@@ -383,7 +457,13 @@ then
         cd $initial_wd
         echo "Saved!"
         echo "Replacing current vault file with the new one..."
-        mv $MBV_FILE_LOCATION/~$2.mbv $MBV_FILE_LOCATION/$2.mbv
+        if [ $VAULT_VERSION -eq 1 ]
+        then
+            mv $MBV_FILE_LOCATION/~$2.mbv $MBV_FILE_LOCATION/$2.mbv
+        elif [ $VAULT_VERSION -eq 2 ]
+        then
+            mv $MBV_FILE_LOCATION/~$2.mbv2 $MBV_FILE_LOCATION/$2.mbv2
+        fi
         echo -n "Unmounting ramdisk... "
         $root_auth umount $MBV_RAMDISK_LOCATION/$2
         if [[ $? -ne 0 ]]
@@ -397,6 +477,60 @@ then
         break
     done
     trap - SIGINT SIGTERM
+elif [[ $1 == "convert" ]] || [[ $1 == "update" ]]
+then
+    if [ -z "$2" ]
+    then 
+        echo "Missing required param: name" >&2
+        exit 1 
+    fi
+    if [[ $2 =~ ^~ ]]
+    then
+        echo "The vault name may not start with '~'!" >&2
+        echo "Vault files starting with '~' are reserved for partially saved vaults." >&2
+        echo "If you're looking to open the partially saved vault file, please manually rename it in $MBV_FILE_LOCATION" >&2
+        exit 1
+    fi
+    if [ -e $MBV_FILE_LOCATION/$2.mbv2 ]
+    then
+        echo "Vault '$2' is already in the latest format!" >&2
+        exit 1
+    fi
+    if ! [ -e $MBV_FILE_LOCATION/$2.mbv ]
+    then
+        echo "Vault '$2' does not exist!" >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/~$2.mbv" ]
+    then
+        echo "Vault '$2' has a partially saved vault file '~$2.mbv'!" >&2
+        echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
+        exit 1
+    fi
+    if [ -e "$MBV_FILE_LOCATION/~$2.mbv2" ]
+    then
+        echo "Vault '$2' has a partially saved vault file '~$2.mbv2'!" >&2
+        echo "Please manually delete or move it in $MBV_FILE_LOCATION." >&2
+        exit 1
+    fi
+    echo "Checking used gpg key..."
+    key_id=$(gpg --list-packets $MBV_FILE_LOCATION/$2.mbv | grep -oP "[A-F0-9]{16}" | head -n 1)
+    if [ -z "$key_id" ]
+    then
+        echo "Unable to get key used, aborting" >&2
+        exit 1
+    fi
+    echo "Updating vault..."
+    file_size=$(du -sb $MBV_FILE_LOCATION/$2.mbv | awk '{print $1}')
+    gpg --decrypt -q $MBV_FILE_LOCATION/$2.mbv | pv -s $file_size | gzip -dc | zstd | gpg --encrypt -o $MBV_FILE_LOCATION/~$2.mbv2 -u $key_id -r $key_id --yes && chmod 600 $MBV_FILE_LOCATION/~$2.mbv2
+    if [[ $? -eq 0 ]]
+    then
+        echo "Moving vault into place & removing old vault version..."
+        mv $MBV_FILE_LOCATION/~$2.mbv2 $MBV_FILE_LOCATION/$2.mbv2 && rm "$MBV_FILE_LOCATION/$2.mbv" && (echo "Done!" && exit 0) || (echo "Failed!" && exit 1)
+    else
+        echo "Failed!"
+        exit 1
+    fi
 else
     echo "Invalid subcommand, use mini_vault help to see subcommands."
     exit 1
