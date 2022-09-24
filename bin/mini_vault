@@ -104,9 +104,8 @@ fi
 chmod 700 $MBV_FILE_LOCATION
 if ! [ -z "$(ls $MBV_FILE_LOCATION)" ]
 then
-    chmod 600 $MBV_FILE_LOCATION/*.mbv
+    chmod 600 $MBV_FILE_LOCATION/*.mbv{,2} 2> /dev/null
 fi
-chmod 600 $MBV_FILE_LOCATION/*
 # ... and the ramdisk directory
 if ! [ -d $MBV_RAMDISK_LOCATION ]
 then
