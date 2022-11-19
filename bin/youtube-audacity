@@ -1,0 +1,102 @@
+#! /bin/bash
+#    youtube-audacity: a simple script for opening youtube videos in audaicty
+#
+#    Copyright (C) 2021-2022 mini_bomba
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+# Check dependencies
+FAIL=0
+if YTDL=$(which yt-dlp)
+then
+    echo "Using yt-dlp" >&2
+elif YTDL=$(which youtube-dl) 
+then
+    echo "yt-dlp not found; using fallback youtube-dl." >&2
+    echo "Consider installing yt-dlp if you experience throttling." >&2
+else
+    echo "Missing required dependency: yt-dlp" >&2
+    FAIL=1
+fi
+if ! which grep > /dev/null 2>&1
+then
+    echo "Missing required dependency: grep" >&2
+    FAIL=1
+fi
+if ! which jq > /dev/null 2>&1
+then
+    echo "Missing required dependency: jq" >&2
+    FAIL=1
+fi
+if ! which xargs > /dev/null 2>&1
+then
+    echo "Missing required dependency: xargs" >&2
+    FAIL=1
+fi
+if ! which audacity > /dev/null 2>&1
+then
+    echo "Missing required dependency: audacity" >&2
+    FAIL=1
+fi
+
+if [ $FAIL -ne 0 ]
+then
+    exit 1
+fi
+# Set default settings if not overriden
+if [ -z "$MBYTM_DOWNLOAD_PROCS" ]
+then
+    MBYTM_DOWNLOAD_PROCS=10
+fi
+if [ -z "$MBYTM_FFMPEG_PROCS" ]
+then
+    MBYTM_FFMPEG_PROCS=4
+fi
+
+VID="$@"
+# Ask user for url, if not given in args
+if [ -z "$VID" ]
+then
+    echo -n "No music video url/id given, please enter one now: "
+    read VID
+    if [ -z "$VID" ]
+    then
+        echo "No music video url/id given, exiting."
+        exit 1
+    fi
+fi
+
+# Create a temp directory (for easy playlist support)
+TMP_DIR=$(mktemp -d)
+trap "rm -rf $TMP_DIR" EXIT
+trap "exit 1" INT
+# Download videos to temp directory
+echo "Downloading videos..."
+if echo "$VID" | grep -P "youtube\.com/.*list" > /dev/null
+then
+    $YTDL --flat-playlist -j "$VID" | jq -r '.url' | xargs -P $MBYTM_DOWNLOAD_PROCS -n 1 -d "\n" -r sh -c "echo \"Downloading \$0...\"; $YTDL -q -o \"$TMP_DIR/%(id)s\" -f \"bestaudio/best[height<=144]/best\" \$0; echo \"\$0 downloaded\""
+else
+    $YTDL -o "$TMP_DIR/%(id)s" -f "bestaudio/best[height<=144]/best" "$VID"
+fi
+
+# Open the videos in audacity
+audacity $TMP_DIR/*
+
+# Cleanup temp files
+echo "Deleting temp files..."
+trap - EXIT INT
+rm -rf "$TMP_DIR"
+echo "Done!"
+
+
