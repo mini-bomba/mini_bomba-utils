@@ -54,7 +54,7 @@ then
     exit 1
 fi
 function index-file() {
-    if echo $1 | grep -Pv '^[\w\d\-_]{11}\.mp3$' > /dev/null
+    if echo $1 | grep -Pv '^[[:alnum:]_-]{11}\.mp3$' > /dev/null
     then
         echo "$1 Invalid youtube ID"
         return
