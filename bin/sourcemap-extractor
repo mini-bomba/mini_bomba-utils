@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+#    sourcemap-extractor: a simple script for extracting source code from js sourcemap files
+#
+#    Copyright (C) 2024 mini_bomba
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+import json
+import base64
+import sys
+from pathlib import Path
+
+IGNORED_PATH_PREFIXES = ["webpack://"]
+
+# Read all available input from stdin
+input_data = sys.stdin.read()
+
+# Try to parse it as json
+try:
+    parsed_data = json.loads(input_data)
+except json.JSONDecodeError:
+    try:
+        decoded_data = base64.b64decode(input_data)
+        parsed_data = json.loads(decoded_data)
+    except Exception:
+        print("Failed to load input sourcemap", file=sys.stderr)
+        raise
+
+if 'sources' not in parsed_data or 'sourcesContent' not in parsed_data:
+    print("Sources do not include source code", file=sys.stderr)
+    exit(1)
+
+cwd = Path.cwd()
+for i, path in enumerate(parsed_data['sources']):
+    for prefix in IGNORED_PATH_PREFIXES:
+        if path.startswith(prefix):
+            path = path[len(prefix):]
+            break
+
+    try:
+        parsed_path = Path(path)
+    except Exception:
+        print(f"Failed to parse path: {path}, skipping", file=sys.stderr)
+        continue
+
+    while parsed_path.anchor != '':
+        parsed_path = Path(*parsed_path.parts[:1])
+    if parsed_path.suffix == '':
+        parsed_path = parsed_path.with_suffix('.js')
+
+    # write file
+    full_path = cwd / parsed_path
+    full_path.parent.mkdir(parents=True, exist_ok=True)
+    with full_path.open('w') as f:
+        f.write(parsed_data['sourcesContent'][i])
+
+    print(f"File extracted: {path}", file=sys.stderr)
