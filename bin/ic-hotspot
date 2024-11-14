@@ -15,26 +15,27 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+TMPDIR=`mktemp -d`
+trap "rm -rf $TMPDIR" EXIT
 echo "Making initial http request"
-mkdir /tmp/ic_hotspot
-curl -L -c /tmp/ic_hotspot/cookies -b "" --connect-to "hotspot.intercity.pl::10.231.0.1:" --dump-header /tmp/ic_hotspot/headers1 -o /tmp/ic_hotspot/output1 http://1.1.1.1
+curl -L -c $TMPDIR/cookies -b "" --connect-to "hotspot.intercity.pl::10.231.0.1:" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
 echo
 if [[ $? -ne 0 ]];
 then
   echo "Failed"
   exit 1
 fi
-if grep "cloudflare" /tmp/ic_hotspot/headers1 > /dev/null;
+if grep "cloudflare" $TMPDIR/headers1 > /dev/null;
 then
   echo "Already connected!"
   exit 1
 fi
-if grep "404 Not Found" /tmp/ic_hotspot/headers1 > /dev/null;
+if grep "404 Not Found" $TMPDIR/headers1 > /dev/null;
 then
   echo "Got 404, retry"
   exit 1
 fi
-CSRF_TOKEN=`grep "csrfmiddlewaretoken" /tmp/ic_hotspot/output1 | grep -Po 'value="\w+' | cut -f 2 -d '"'`
+CSRF_TOKEN=`grep "csrfmiddlewaretoken" $TMPDIR/output1 | grep -Po 'value="\w+' | cut -f 2 -d '"'`
 if [[ -z "$CSRF_TOKEN" ]];
 then
   echo "No CSRF token found";
@@ -42,13 +43,13 @@ then
 fi
 
 echo "Sending request #2"
-curl -L -b /tmp/ic_hotspot/cookies --connect-to "hotspot.intercity.pl::10.231.0.1:" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o /tmp/ic_hotspot/output2 https://hotspot.intercity.pl:8443/cc/hotspot_pesa/index
+curl -L -b $TMPDIR/cookies --connect-to "hotspot.intercity.pl::10.231.0.1:" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 https://hotspot.intercity.pl:8443/cc/hotspot_pesa/index
 
-HOST=`grep "host" /tmp/ic_hotspot/output2 | grep -Po '\d+\.\d+\.\d+\.\d+'`
-PORT=`grep "port" /tmp/ic_hotspot/output2 | grep -Po '\d+'`
-CHALLENGE=`grep "challenge" /tmp/ic_hotspot/output2 | grep -Po '[0-9a-f]{32}'`
-USERNAME=`grep "\.logon" /tmp/ic_hotspot/output2 | cut -d '"' -f 2`
-PASSWORD=`grep "\.logon" /tmp/ic_hotspot/output2 | cut -d '"' -f 4`
+HOST=`grep "host" $TMPDIR/output2 | grep -Po '\d+\.\d+\.\d+\.\d+'`
+PORT=`grep "port" $TMPDIR/output2 | grep -Po '\d+'`
+CHALLENGE=`grep "challenge" $TMPDIR/output2 | grep -Po '[0-9a-f]{32}'`
+USERNAME=`grep "\.logon" $TMPDIR/output2 | cut -d '"' -f 2`
+PASSWORD=`grep "\.logon" $TMPDIR/output2 | cut -d '"' -f 4`
 
 echo
 
@@ -58,9 +59,9 @@ then
   exit 1
 fi
 echo "Sending request #3"
-curl --connect-to "hotspot.intercity.pl::10.231.0.1:" "http://hotspot.intercity.pl:8080/cc/hotspot_pesa/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee /tmp/ic_hotspot/output3
+curl --connect-to "hotspot.intercity.pl::10.231.0.1:" "http://hotspot.intercity.pl:8080/cc/hotspot_pesa/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
 
-RESPONSE=`cat /tmp/ic_hotspot/output3`
+RESPONSE=`cat $TMPDIR/output3`
 
 echo
 if [[ -z "$RESPONSE" ]];
@@ -72,11 +73,10 @@ echo "Authenticating..."
 curl "http://$HOST:$PORT/json/logon?username=$USERNAME&response=$RESPONSE"
 echo
 echo "Checking internet connectivity"
-curl --dump-header /tmp/ic_hotspot/headers4 http://1.1.1.1
-if ! grep "cloudflare" /tmp/ic_hotspot/headers4 > /dev/null;
+curl --dump-header $TMPDIR/headers4 http://1.1.1.1
+if ! grep "cloudflare" $TMPDIR/headers4 > /dev/null;
 then
   echo "Failed to authenticate!"
   exit 1
 fi
 echo "Done!"
-rm -rf /tmp/ic_hotspot
