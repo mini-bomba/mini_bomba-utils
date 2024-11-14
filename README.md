@@ -28,4 +28,5 @@ Most executable files in this repository will not include extensions specifying 
 | [index-music](/bin/index-music)                 | [index-music.md](/docs/index-music.md)                       | bash     |
 | [beep-file](/bin/beep-file)                     | [beep-file.md](/docs/beep-file.md)                           | python3  |
 | [kclip](/bin/kclip)                             | [kclip.md](/docs/kclip.md)                                   | python3  |
-| [sourcemap-extractor](/bin/sourcemap-extractor) | [sourcemap-extractor.md](/docs/sourcemap-extractor.md) | python3  |
+| [sourcemap-extractor](/bin/sourcemap-extractor) | [sourcemap-extractor.md](/docs/sourcemap-extractor.md)       | python3  |
+| [ic-hotspot](/bin/ic-hotspot)                   | [ic-hotspot.md](/docs/ic-hotspot.md)                         | bash     |
