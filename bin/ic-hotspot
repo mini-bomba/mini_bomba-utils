@@ -18,7 +18,7 @@
 TMPDIR=`mktemp -d`
 trap "rm -rf $TMPDIR" EXIT
 echo "Making initial http request"
-curl -v --dump-header $TMPDIR/headers0 -o /dev/null http://1.1.1.1
+curl --dump-header $TMPDIR/headers0 -o /dev/null http://1.1.1.1
 if [[ $? -ne 0 ]];
 then
   echo "Failed"
