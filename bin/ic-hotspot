@@ -18,7 +18,30 @@
 TMPDIR=`mktemp -d`
 trap "rm -rf $TMPDIR" EXIT
 echo "Making initial http request"
-curl -L -c $TMPDIR/cookies -b "" --connect-to "hotspot.intercity.pl::10.231.0.1:" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
+curl -v --dump-header $TMPDIR/headers0 -o /dev/null http://1.1.1.1
+if [[ $? -ne 0 ]];
+then
+  echo "Failed"
+  exit 1
+fi
+if grep "https://hotspot.intercity.pl:8443/cc/hotspot_pesa/" $TMPDIR/headers0;
+then
+  HOTSPOT_TYPE=1
+  PORTAL_IP="10.231.0.1"
+  PORTAL_NAME="hotspot_pesa"
+  echo "Hotspot type: IC PESA"
+elif grep "https://hotspot.intercity.pl:8443/cc/hotspot_fps/" $TMPDIR/headers0;
+then
+  HOTSPOT_TYPE=2
+  PORTAL_IP="10.230.0.1"
+  PORTAL_NAME="hotspot_fps"
+  echo "Hotspot type: IC FPS"
+else
+  echo "Unknown hotspot type"
+  exit 1
+fi
+
+curl -L -c $TMPDIR/cookies -b "" --connect-to "hotspot.intercity.pl::$PORTAL_IP:" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
 echo
 if [[ $? -ne 0 ]];
 then
@@ -43,7 +66,7 @@ then
 fi
 
 echo "Sending request #2"
-curl -L -b $TMPDIR/cookies --connect-to "hotspot.intercity.pl::10.231.0.1:" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 https://hotspot.intercity.pl:8443/cc/hotspot_pesa/index
+curl -L -b $TMPDIR/cookies --connect-to "hotspot.intercity.pl::$PORTAL_IP:" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 "https://hotspot.intercity.pl:8443/cc/$PORTAL_NAME/index"
 
 HOST=`grep "host" $TMPDIR/output2 | grep -Po '\d+\.\d+\.\d+\.\d+'`
 PORT=`grep "port" $TMPDIR/output2 | grep -Po '\d+'`
@@ -59,7 +82,7 @@ then
   exit 1
 fi
 echo "Sending request #3"
-curl --connect-to "hotspot.intercity.pl::10.231.0.1:" "http://hotspot.intercity.pl:8080/cc/hotspot_pesa/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
+curl --connect-to "hotspot.intercity.pl::$PORTAL_IP:" "http://hotspot.intercity.pl:8080/cc/hotspot_pesa/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
 
 RESPONSE=`cat $TMPDIR/output3`
 

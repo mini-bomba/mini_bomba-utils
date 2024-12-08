@@ -17,3 +17,7 @@ Clone the repo & add it to the PATH, or download the file, put it in a directory
 Connect to the WiFi hotspot, run the script, hope it works.
 
 The script should work even when using DNS over TLS (which was my main issue with these captive portals)
+
+#### Implemented captive portal types
+- IC "hotspot_pesa"
+- IC "hotspot_fps"
