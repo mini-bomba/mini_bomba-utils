@@ -21,3 +21,7 @@ The script should work even when using DNS over TLS (which was my main issue wit
 #### Implemented captive portal types
 - IC "hotspot_pesa"
 - IC "hotspot_fps"
+
+#### Automatic login
+Try creating a script in /etc/NetworkManager/dispatcher.d/ that calls this utility after connecting to a supported hotspot.
+See the `NetworkManager-dispatcher(8)` manpage for more info
