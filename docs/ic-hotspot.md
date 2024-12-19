@@ -19,8 +19,9 @@ Connect to the WiFi hotspot, run the script, hope it works.
 The script should work even when using DNS over TLS (which was my main issue with these captive portals)
 
 #### Implemented captive portal types
-- IC "hotspot_pesa"
-- IC "hotspot_fps"
+- IC "`hotspot_pesa`"
+- IC "`hotspot_fps`"
+- IC "`portal<dot>passengera<dot>com`"
 
 #### Automatic login
 Try creating a script in /etc/NetworkManager/dispatcher.d/ that calls this utility after connecting to a supported hotspot.

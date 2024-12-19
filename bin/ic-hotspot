@@ -32,68 +32,81 @@ then
   echo "Hotspot type: IC PESA"
 elif grep "https://hotspot.intercity.pl:8443/cc/hotspot_fps/" $TMPDIR/headers0;
 then
-  HOTSPOT_TYPE=2
+  HOTSPOT_TYPE=1
   PORTAL_IP="10.230.0.1"
   PORTAL_NAME="hotspot_fps"
   echo "Hotspot type: IC FPS"
+elif grep "portal.passengera.com" $TMPDIR/headers0;
+then
+  HOTSPOT_TYPE=2
+  PORTAL_IP="172.16.2.2"
+  PORTAL_NAME=""
+  echo "Hotspot type: portal.passengera.com"
 else
   echo "Unknown hotspot type"
   exit 1
 fi
 
-curl -L -c $TMPDIR/cookies -b "" --connect-to "hotspot.intercity.pl::$PORTAL_IP:" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
-echo
-if [[ $? -ne 0 ]];
+if [[ $HOTSPOT_TYPE -eq 1 ]]
 then
-  echo "Failed"
-  exit 1
-fi
-if grep "cloudflare" $TMPDIR/headers1 > /dev/null;
+  curl -L -c $TMPDIR/cookies -b "" --connect-to "hotspot.intercity.pl::$PORTAL_IP:" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
+  echo
+  if [[ $? -ne 0 ]];
+  then
+    echo "Failed"
+    exit 1
+  fi
+  if grep "cloudflare" $TMPDIR/headers1 > /dev/null;
+  then
+    echo "Already connected!"
+    exit 1
+  fi
+  if grep "404 Not Found" $TMPDIR/headers1 > /dev/null;
+  then
+    echo "Got 404, retry"
+    exit 1
+  fi
+  CSRF_TOKEN=`grep "csrfmiddlewaretoken" $TMPDIR/output1 | grep -Po 'value="\w+' | cut -f 2 -d '"'`
+  if [[ -z "$CSRF_TOKEN" ]];
+  then
+    echo "No CSRF token found";
+    exit 1
+  fi
+
+  echo "Sending request #2"
+  curl -L -b $TMPDIR/cookies --connect-to "hotspot.intercity.pl::$PORTAL_IP:" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 "https://hotspot.intercity.pl:8443/cc/$PORTAL_NAME/index"
+
+  HOST=`grep "host" $TMPDIR/output2 | grep -Po '\d+\.\d+\.\d+\.\d+'`
+  PORT=`grep "port" $TMPDIR/output2 | grep -Po '\d+'`
+  CHALLENGE=`grep "challenge" $TMPDIR/output2 | grep -Po '[0-9a-f]{32}'`
+  USERNAME=`grep "\.logon" $TMPDIR/output2 | cut -d '"' -f 2`
+  PASSWORD=`grep "\.logon" $TMPDIR/output2 | cut -d '"' -f 4`
+
+  echo
+
+  if [[ -z "$HOST" ]] || [[ -z "$PORT" ]] || [[ -z "$CHALLENGE" ]] || [[ -z "$USERNAME" ]] || [[ -z "$PASSWORD" ]];
+  then
+    echo "Failed to extract challenge data"
+    exit 1
+  fi
+  echo "Sending request #3"
+  curl --connect-to "hotspot.intercity.pl::$PORTAL_IP:" "http://hotspot.intercity.pl:8080/cc/hotspot_pesa/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
+
+  RESPONSE=`cat $TMPDIR/output3`
+
+  echo
+  if [[ -z "$RESPONSE" ]];
+  then
+    echo "Failed to extract challenge response"
+    exit 1
+  fi
+  echo "Authenticating..."
+  curl "http://$HOST:$PORT/json/logon?username=$USERNAME&response=$RESPONSE"
+elif [[ $HOTSPOT_TYPE -eq 2 ]]
 then
-  echo "Already connected!"
-  exit 1
+  echo "Requesting internet access"
+  curl --connect-to "portal.passengera.com::$PORTAL_IP:" --json '{"category":"internet","bundleId":"default"}' https://portal.passengera.com/api/users
 fi
-if grep "404 Not Found" $TMPDIR/headers1 > /dev/null;
-then
-  echo "Got 404, retry"
-  exit 1
-fi
-CSRF_TOKEN=`grep "csrfmiddlewaretoken" $TMPDIR/output1 | grep -Po 'value="\w+' | cut -f 2 -d '"'`
-if [[ -z "$CSRF_TOKEN" ]];
-then
-  echo "No CSRF token found";
-  exit 1
-fi
-
-echo "Sending request #2"
-curl -L -b $TMPDIR/cookies --connect-to "hotspot.intercity.pl::$PORTAL_IP:" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 "https://hotspot.intercity.pl:8443/cc/$PORTAL_NAME/index"
-
-HOST=`grep "host" $TMPDIR/output2 | grep -Po '\d+\.\d+\.\d+\.\d+'`
-PORT=`grep "port" $TMPDIR/output2 | grep -Po '\d+'`
-CHALLENGE=`grep "challenge" $TMPDIR/output2 | grep -Po '[0-9a-f]{32}'`
-USERNAME=`grep "\.logon" $TMPDIR/output2 | cut -d '"' -f 2`
-PASSWORD=`grep "\.logon" $TMPDIR/output2 | cut -d '"' -f 4`
-
-echo
-
-if [[ -z "$HOST" ]] || [[ -z "$PORT" ]] || [[ -z "$CHALLENGE" ]] || [[ -z "$USERNAME" ]] || [[ -z "$PASSWORD" ]];
-then
-  echo "Failed to extract challenge data"
-  exit 1
-fi
-echo "Sending request #3"
-curl --connect-to "hotspot.intercity.pl::$PORTAL_IP:" "http://hotspot.intercity.pl:8080/cc/hotspot_pesa/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
-
-RESPONSE=`cat $TMPDIR/output3`
-
-echo
-if [[ -z "$RESPONSE" ]];
-then
-  echo "Failed to extract challenge response"
-  exit 1
-fi
-echo "Authenticating..."
-curl "http://$HOST:$PORT/json/logon?username=$USERNAME&response=$RESPONSE"
 echo
 echo "Checking internet connectivity"
 curl --dump-header $TMPDIR/headers4 http://1.1.1.1
