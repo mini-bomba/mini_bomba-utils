@@ -27,19 +27,34 @@ fi
 if grep "https://hotspot.intercity.pl:8443/cc/hotspot_pesa/" $TMPDIR/headers0;
 then
   HOTSPOT_TYPE=1
-  PORTAL_IP="10.231.0.1"
+  DNS_OVERRIDES="hotspot.intercity.pl::10.231.0.1:"
+  # PORTAL_IP="10.231.0.1"
   PORTAL_NAME="hotspot_pesa"
+  PORTAL_ORIGIN="https://hotspot.intercity.pl:8443"
+  HTML_QUOTE='"'
   echo "Hotspot type: IC PESA"
 elif grep "https://hotspot.intercity.pl:8443/cc/hotspot_fps/" $TMPDIR/headers0;
 then
   HOTSPOT_TYPE=1
-  PORTAL_IP="10.230.0.1"
+  DNS_OVERRIDES="hotspot.intercity.pl::10.230.0.1:"
+  # PORTAL_IP="10.230.0.1"
   PORTAL_NAME="hotspot_fps"
+  PORTAL_ORIGIN="https://hotspot.intercity.pl:8443"
+  HTML_QUOTE='"'
   echo "Hotspot type: IC FPS"
+elif grep "http://hotspot.ledatel.pl:8080/cc/hotspot/" $TMPDIR/headers0;
+then
+  HOTSPOT_TYPE=1
+  DNS_OVERRIDES="hotspot.ledatel.pl::10.240.0.1:"
+  PORTAL_NAME="hotspot"
+  PORTAL_ORIGIN="http://hotspot.ledatel.pl:8080"
+  HTML_QUOTE="'"
+  echo "Hotspot type: ledatel.pl"
 elif grep "portal.passengera.com" $TMPDIR/headers0;
 then
   HOTSPOT_TYPE=2
-  PORTAL_IP="172.16.2.2"
+  DNS_OVERRIDES="portal.passengera.com::172.16.2.2:"
+  # PORTAL_IP="172.16.2.2"
   PORTAL_NAME=""
   echo "Hotspot type: portal.passengera.com"
 else
@@ -49,7 +64,7 @@ fi
 
 if [[ $HOTSPOT_TYPE -eq 1 ]]
 then
-  curl -L -c $TMPDIR/cookies -b "" --connect-to "hotspot.intercity.pl::$PORTAL_IP:" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
+  curl -L -c $TMPDIR/cookies -b "" --connect-to "$DNS_OVERRIDES" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
   echo
   if [[ $? -ne 0 ]];
   then
@@ -66,7 +81,7 @@ then
     echo "Got 404, retry"
     exit 1
   fi
-  CSRF_TOKEN=`grep "csrfmiddlewaretoken" $TMPDIR/output1 | grep -Po 'value="\w+' | cut -f 2 -d '"'`
+  CSRF_TOKEN=`grep "csrfmiddlewaretoken" $TMPDIR/output1 | grep -Po "value=$HTML_QUOTE\\w+" | cut -f 2 -d "$HTML_QUOTE"`
   if [[ -z "$CSRF_TOKEN" ]];
   then
     echo "No CSRF token found";
@@ -74,7 +89,7 @@ then
   fi
 
   echo "Sending request #2"
-  curl -L -b $TMPDIR/cookies --connect-to "hotspot.intercity.pl::$PORTAL_IP:" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 "https://hotspot.intercity.pl:8443/cc/$PORTAL_NAME/index"
+  curl -L -b $TMPDIR/cookies --connect-to "$DNS_OVERRIDES" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 "$PORTAL_ORIGIN/cc/$PORTAL_NAME/index"
 
   HOST=`grep "host" $TMPDIR/output2 | grep -Po '\d+\.\d+\.\d+\.\d+'`
   PORT=`grep "port" $TMPDIR/output2 | grep -Po '\d+'`
@@ -90,7 +105,7 @@ then
     exit 1
   fi
   echo "Sending request #3"
-  curl --connect-to "hotspot.intercity.pl::$PORTAL_IP:" "http://hotspot.intercity.pl:8080/cc/hotspot_pesa/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
+  curl --connect-to "$DNS_OVERRIDES" "$PORTAL_ORIGIN/cc/$PORTAL_NAME/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
 
   RESPONSE=`cat $TMPDIR/output3`
 
@@ -105,7 +120,7 @@ then
 elif [[ $HOTSPOT_TYPE -eq 2 ]]
 then
   echo "Requesting internet access"
-  curl --connect-to "portal.passengera.com::$PORTAL_IP:" --json '{"category":"internet","bundleId":"default"}' https://portal.passengera.com/api/users
+  curl --connect-to "$DNS_OVERRIDES" --json '{"category":"internet","bundleId":"default"}' https://portal.passengera.com/api/users
 fi
 echo
 echo "Checking internet connectivity"
