@@ -1,0 +1,31 @@
+#!/bin/bash
+#    git-pr: a custom git command for checking out and merging github PRs
+#
+#    Copyright (C) 2024 mini_bomba
+#    
+if [[ -z "$1" ]]
+then
+  echo "Usage: git pr [merge] <pull-request-id> [remote-name]" >&2
+  exit 1
+fi
+MERGE=0
+if [[ "$1" == "merge" ]];
+then
+  MERGE=1
+  shift
+fi
+PR=$1
+if [[ -z "$2" ]]
+then
+  REMOTE=`git remote show | head -n1`
+else
+  REMOTE=$2
+fi
+set -e
+git fetch $REMOTE refs/pull/$PR/head
+if [[ "$MERGE" == 1 ]];
+then
+  git merge --ff -m "Merge pull request #$1" FETCH_HEAD
+else
+  git checkout FETCH_HEAD
+fi

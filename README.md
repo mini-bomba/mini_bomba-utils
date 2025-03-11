@@ -30,3 +30,4 @@ Most executable files in this repository will not include extensions specifying 
 | [kclip](/bin/kclip)                             | [kclip.md](/docs/kclip.md)                                   | python3  |
 | [sourcemap-extractor](/bin/sourcemap-extractor) | [sourcemap-extractor.md](/docs/sourcemap-extractor.md)       | python3  |
 | [ic-hotspot](/bin/ic-hotspot)                   | [ic-hotspot.md](/docs/ic-hotspot.md)                         | bash     |
+| [git pr](/bin/git-pr)                           | [git-pr.md](/docs/git-pr.md)                                 | bash     |
