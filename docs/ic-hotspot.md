@@ -6,6 +6,7 @@
 * bash
 * curl
 * grep
+* sudo & node (for KD hotspots)
 
 ### Installation
 
@@ -22,6 +23,8 @@ The script should work even when using DNS over TLS (which was my main issue wit
 - IC "`hotspot_pesa`"
 - IC "`hotspot_fps`"
 - IC "`portal<dot>passengera<dot>com`"
+- KD "`hotspot<dot>ente<dot>pl`"
+  - note: this hotspot type will execute untrusted js code as the `nobody` user.
 
 #### Automatic login
 Try creating a script in /etc/NetworkManager/dispatcher.d/ that calls this utility after connecting to a supported hotspot.

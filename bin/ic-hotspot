@@ -57,6 +57,12 @@ then
   # PORTAL_IP="172.16.2.2"
   PORTAL_NAME=""
   echo "Hotspot type: portal.passengera.com"
+elif grep "hotspot.ente.pl" $TMPDIR/headers0;
+then
+  HOTSPOT_TYPE=3
+  DNS_OVERRIDES="hotspot.ente.pl::10.5.50.1:"
+  PORTAL_NAME=""
+  echo "Hotspot type: hotspot.ente.pl (KD)"
 else
   echo "Unknown hotspot type"
   exit 1
@@ -121,6 +127,19 @@ elif [[ $HOTSPOT_TYPE -eq 2 ]]
 then
   echo "Requesting internet access"
   curl --connect-to "$DNS_OVERRIDES" --json '{"category":"internet","bundleId":"default"}' https://portal.passengera.com/api/users
+elif [[ $HOTSPOT_TYPE -eq 3 ]]
+then
+  chmod +x $TMPDIR
+  echo "Fetching md5 library"
+  curl --connect-to "$DNS_OVERRIDES" -o $TMPDIR/md5.js http://hotspot.ente.pl/md5.js
+  echo "Fetching login page"
+  curl --connect-to "$DNS_OVERRIDES" -o $TMPDIR/login.html http://hotspot.ente.pl/login
+  echo "Extracting password salt"
+  grep "password.value" $TMPDIR/login.html | grep -Po "'.+'" | sed -e "s/'\\s*+[^']\\+'/kd/" -e 's/.\+/console.log(hexMD5(\0))/' >> $TMPDIR/md5.js
+  echo "Evaluating script with node.js as nobody"
+  HASH=`sudo -u nobody node $TMPDIR/md5.js | tr -d '\n'`
+  echo "Authenticating"
+  curl --connect-to "$DNS_OVERRIDES" -o /dev/null -d "username=kd" -d "password=$HASH" http://hotspot.ente.pl/login
 fi
 echo
 echo "Checking internet connectivity"
