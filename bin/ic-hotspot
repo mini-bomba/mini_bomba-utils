@@ -63,6 +63,12 @@ then
   DNS_OVERRIDES="hotspot.ente.pl::10.5.50.1:"
   PORTAL_NAME=""
   echo "Hotspot type: hotspot.ente.pl (KD)"
+elif grep "http://10.200.0.1:8000/?fas=" $TMPDIR/headers0
+then
+  HOTSPOT_TYPE=4
+  DNS_OVERRIDES=""
+  PORTAL_NAME=""
+  echo "Hotspot type: openNDS"
 else
   echo "Unknown hotspot type"
   exit 1
@@ -140,6 +146,10 @@ then
   HASH=`sudo -u nobody node $TMPDIR/md5.js | tr -d '\n'`
   echo "Authenticating"
   curl --connect-to "$DNS_OVERRIDES" -o /dev/null -d "username=kd" -d "password=$HASH" http://hotspot.ente.pl/login
+elif [[ $HOTSPOT_TYPE -eq 4 ]]
+then
+  echo "Acknowledging ToS"
+  TOKEN="`grep "Location:" $TMPDIR/headers0 | sed 's/.\+fas=//'`" curl -vLo /dev/null --variable %TOKEN --expand-url 'http://10.200.0.1:8000/?fas={{TOKEN:url}}&continue=clicked'
 fi
 echo
 echo "Checking internet connectivity"
