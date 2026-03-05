@@ -26,6 +26,7 @@ The script should work even when using DNS over TLS (which was my main issue wit
 - KD "`hotspot<dot>ente<dot>pl`"
   - note: this hotspot type will execute untrusted js code as the `nobody` user.
 - IC "openNDS"
+- ČD
 
 #### Automatic login
 Try creating a script in /etc/NetworkManager/dispatcher.d/ that calls this utility after connecting to a supported hotspot.

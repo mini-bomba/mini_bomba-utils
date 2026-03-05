@@ -1,7 +1,7 @@
 #! /bin/bash
 #    ic-hotspot: a commandline utility to log into PKP InterCity's hotspot network
 #
-#    Copyright (C) 2024 mini_bomba
+#    Copyright (C) 2024-2026 mini_bomba
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,12 @@ then
   DNS_OVERRIDES=""
   PORTAL_NAME=""
   echo "Hotspot type: openNDS"
+elif grep "http://www.cdwifi.cz" $TMPDIR/headers0
+then
+  HOTSPOT_TYPE=5
+  DNS_OVERRIDES="www.cdwifi.cz::10.200.0.1:"
+  PORTAL_NAME=""
+  echo "Hotspot type: ČD"
 else
   echo "Unknown hotspot type"
   exit 1
@@ -150,6 +156,13 @@ elif [[ $HOTSPOT_TYPE -eq 4 ]]
 then
   echo "Acknowledging ToS"
   TOKEN="`grep "Location:" $TMPDIR/headers0 | sed 's/.\+fas=//'`" curl -vLo /dev/null --variable %TOKEN --expand-url 'http://10.200.0.1:8000/?fas={{TOKEN:url}}&continue=clicked'
+elif [[ $HOTSPOT_TYPE -eq 5 ]]
+then
+  echo "Requesting ToS form"
+  curl -L --connect-to "$DNS_OVERRIDES" -o $TMPDIR/output1 http://1.1.1.1
+  TOKEN="`grep "secret" $TMPDIR/output1 | grep -oP 'value="[^"]+"' | grep -oP '"[^"]+"' | sed 's/"//g'`"
+  echo "Acknowledging ToS"
+  curl -L --connect-to "$DNS_OVERRIDES" -F "secret=$TOKEN" -F "eula=on" -o /dev/null http://www.cdwifi.cz/api/accept
 fi
 echo
 echo "Checking internet connectivity"
