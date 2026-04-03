@@ -18,6 +18,7 @@ Clone the repo & add it to the PATH, or download the file, put it in a directory
 Connect to the WiFi hotspot, run the script, hope it works.
 
 The script should work even when using DNS over TLS (which was my main issue with these captive portals)
+or when a default route VPN is active
 
 #### Implemented captive portal types
 - IC "`hotspot_pesa`"
@@ -31,3 +32,6 @@ The script should work even when using DNS over TLS (which was my main issue wit
 #### Automatic login
 Try creating a script in /etc/NetworkManager/dispatcher.d/ that calls this utility after connecting to a supported hotspot.
 See the `NetworkManager-dispatcher(8)` manpage for more info
+
+#### Binding to an interface
+If the environment variable `MB_IH_INTERFACE` or `DEVICE_IFACE` (latter being set by networkmanager if executed as a dispatcher script) then the script will force curl to send all requests through this interface.

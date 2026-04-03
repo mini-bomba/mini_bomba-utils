@@ -17,8 +17,17 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 TMPDIR=`mktemp -d`
 trap "rm -rf $TMPDIR" EXIT
+
+# force requests to go out of the given interface (bypasses default-route VPNs)
+MB_IH_INTERFACE="${MB_IH_INTERFACE:-$DEVICE_IFACE}"
+INTERFACE_FLAGS=""
+if ! [[ -z "$MB_IH_INTERFACE" ]]
+then
+  INTERFACE_FLAGS="--interface if!$MB_IH_INTERFACE"
+fi
+
 echo "Making initial http request"
-curl --dump-header $TMPDIR/headers0 -o /dev/null http://1.1.1.1
+curl $INTERFACE_FLAGS --dump-header $TMPDIR/headers0 -o /dev/null http://1.1.1.1
 if [[ $? -ne 0 ]];
 then
   echo "Failed"
@@ -82,7 +91,7 @@ fi
 
 if [[ $HOTSPOT_TYPE -eq 1 ]]
 then
-  curl -L -c $TMPDIR/cookies -b "" --connect-to "$DNS_OVERRIDES" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
+  curl $INTERFACE_FLAGS -L -c $TMPDIR/cookies -b "" --connect-to "$DNS_OVERRIDES" --dump-header $TMPDIR/headers1 -o $TMPDIR/output1 http://1.1.1.1
   echo
   if [[ $? -ne 0 ]];
   then
@@ -107,7 +116,7 @@ then
   fi
 
   echo "Sending request #2"
-  curl -L -b $TMPDIR/cookies --connect-to "$DNS_OVERRIDES" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 "$PORTAL_ORIGIN/cc/$PORTAL_NAME/index"
+  curl $INTERFACE_FLAGS -L -b $TMPDIR/cookies --connect-to "$DNS_OVERRIDES" -F "csrfmiddlewaretoken=$CSRF_TOKEN" -F "form_type=terms" -F "accept_terms=1" -H "Referer: https://hotspot.intercity.pl:8443" -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0" -o $TMPDIR/output2 "$PORTAL_ORIGIN/cc/$PORTAL_NAME/index"
 
   HOST=`grep "host" $TMPDIR/output2 | grep -Po '\d+\.\d+\.\d+\.\d+'`
   PORT=`grep "port" $TMPDIR/output2 | grep -Po '\d+'`
@@ -123,7 +132,7 @@ then
     exit 1
   fi
   echo "Sending request #3"
-  curl --connect-to "$DNS_OVERRIDES" "$PORTAL_ORIGIN/cc/$PORTAL_NAME/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
+  curl $INTERFACE_FLAGS --connect-to "$DNS_OVERRIDES" "$PORTAL_ORIGIN/cc/$PORTAL_NAME/_uamservice?username=$USERNAME&password=$PASSWORD&challenge=$CHALLENGE" | tee $TMPDIR/output3
 
   RESPONSE=`cat $TMPDIR/output3`
 
@@ -134,39 +143,39 @@ then
     exit 1
   fi
   echo "Authenticating..."
-  curl "http://$HOST:$PORT/json/logon?username=$USERNAME&response=$RESPONSE"
+  curl $INTERFACE_FLAGS "http://$HOST:$PORT/json/logon?username=$USERNAME&response=$RESPONSE"
 elif [[ $HOTSPOT_TYPE -eq 2 ]]
 then
   echo "Requesting internet access"
-  curl --connect-to "$DNS_OVERRIDES" --json '{"category":"internet","bundleId":"default"}' https://portal.passengera.com/api/users
+  curl $INTERFACE_FLAGS --connect-to "$DNS_OVERRIDES" --json '{"category":"internet","bundleId":"default"}' https://portal.passengera.com/api/users
 elif [[ $HOTSPOT_TYPE -eq 3 ]]
 then
   chmod +x $TMPDIR
   echo "Fetching md5 library"
-  curl --connect-to "$DNS_OVERRIDES" -o $TMPDIR/md5.js http://hotspot.ente.pl/md5.js
+  curl $INTERFACE_FLAGS --connect-to "$DNS_OVERRIDES" -o $TMPDIR/md5.js http://hotspot.ente.pl/md5.js
   echo "Fetching login page"
-  curl --connect-to "$DNS_OVERRIDES" -o $TMPDIR/login.html http://hotspot.ente.pl/login
+  curl $INTERFACE_FLAGS --connect-to "$DNS_OVERRIDES" -o $TMPDIR/login.html http://hotspot.ente.pl/login
   echo "Extracting password salt"
   grep "password.value" $TMPDIR/login.html | grep -Po "'.+'" | sed -e "s/'\\s*+[^']\\+'/kd/" -e 's/.\+/console.log(hexMD5(\0))/' >> $TMPDIR/md5.js
   echo "Evaluating script with node.js as nobody"
   HASH=`sudo -u nobody node $TMPDIR/md5.js | tr -d '\n'`
   echo "Authenticating"
-  curl --connect-to "$DNS_OVERRIDES" -o /dev/null -d "username=kd" -d "password=$HASH" http://hotspot.ente.pl/login
+  curl $INTERFACE_FLAGS --connect-to "$DNS_OVERRIDES" -o /dev/null -d "username=kd" -d "password=$HASH" http://hotspot.ente.pl/login
 elif [[ $HOTSPOT_TYPE -eq 4 ]]
 then
   echo "Acknowledging ToS"
-  TOKEN="`grep "Location:" $TMPDIR/headers0 | sed 's/.\+fas=//'`" curl -vLo /dev/null --variable %TOKEN --expand-url 'http://10.200.0.1:8000/?fas={{TOKEN:url}}&continue=clicked'
+  TOKEN="`grep "Location:" $TMPDIR/headers0 | sed 's/.\+fas=//'`" curl $INTERFACE_FLAGS -vLo /dev/null --variable %TOKEN --expand-url 'http://10.200.0.1:8000/?fas={{TOKEN:url}}&continue=clicked'
 elif [[ $HOTSPOT_TYPE -eq 5 ]]
 then
   echo "Requesting ToS form"
-  curl -L --connect-to "$DNS_OVERRIDES" -o $TMPDIR/output1 http://1.1.1.1
+  curl $INTERFACE_FLAGS -L --connect-to "$DNS_OVERRIDES" -o $TMPDIR/output1 http://1.1.1.1
   TOKEN="`grep "secret" $TMPDIR/output1 | grep -oP 'value="[^"]+"' | grep -oP '"[^"]+"' | sed 's/"//g'`"
   echo "Acknowledging ToS"
-  curl -L --connect-to "$DNS_OVERRIDES" -F "secret=$TOKEN" -F "eula=on" -o /dev/null http://www.cdwifi.cz/api/accept
+  curl $INTERFACE_FLAGS -L --connect-to "$DNS_OVERRIDES" -F "secret=$TOKEN" -F "eula=on" -o /dev/null http://www.cdwifi.cz/api/accept
 fi
 echo
 echo "Checking internet connectivity"
-curl --dump-header $TMPDIR/headers4 http://1.1.1.1
+curl $INTERFACE_FLAGS --dump-header $TMPDIR/headers4 http://1.1.1.1
 if ! grep "cloudflare" $TMPDIR/headers4 > /dev/null;
 then
   echo "Failed to authenticate!"
